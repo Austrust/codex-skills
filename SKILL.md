@@ -38,6 +38,8 @@ When resolving names, prefer exact matches. If names are ambiguous, ask the user
 
 ## Editing Workflow
 
+Do not hand-write `python -c` snippets or ad hoc API scripts for routine writes. Use the CLI commands below with UTF-8 JSON specs so Chinese text, multiline descriptions, and retry behavior stay reliable.
+
 For publishing a user note/image/chat message as a kanban task, do not hand-write HTTP scripts. Create a UTF-8 JSON spec and use `publish-card`:
 
 ```json
@@ -64,7 +66,63 @@ python scripts/planka_cli.py publish-card --file draft.json --dry-run
 python scripts/planka_cli.py publish-card --file draft.json
 ```
 
-Prefer `--file` over shell arguments for Chinese, addresses, phone numbers, or multiline descriptions. This avoids Windows/PowerShell encoding problems.
+Prefer `--file` over shell arguments or stdin for Chinese, addresses, phone numbers, or multiline descriptions. This avoids Windows/PowerShell encoding problems; in PowerShell, piped Chinese JSON can be converted to `???` before Python receives it.
+
+For finishing or advancing an existing card, use `complete-card` instead of mixing `move-card`, task patches, and comments by hand:
+
+```json
+{
+  "boardId": "1784117505569063970",
+  "title": "高压超声主机",
+  "sourceList": "等待反馈",
+  "moveToList": "已完成",
+  "completeTasks": "all",
+  "comment": "2026-06-02 更新：目前已借用到高压主机，进入下一阶段岩石声速/含水状态预实验。",
+  "commentMode": "append-once"
+}
+```
+
+Run:
+
+```bash
+python scripts/planka_cli.py complete-card --file complete.json --dry-run
+python scripts/planka_cli.py complete-card --file complete.json
+```
+
+For a compound user intent such as "complete the old card and create the next task", create one ordered plan and use `apply-plan`:
+
+```json
+{
+  "operations": [
+    {
+      "action": "complete-card",
+      "boardId": "1784117505569063970",
+      "title": "高压超声主机",
+      "moveToList": "已完成",
+      "completeTasks": "all",
+      "comment": "2026-06-02 更新：目前已借用到高压主机。"
+    },
+    {
+      "action": "publish-card",
+      "boardId": "1784117505569063970",
+      "list": "进行中",
+      "title": "开展高压探头击穿岩石测试预实验",
+      "type": "project",
+      "taskList": "执行清单",
+      "tasks": ["准备岩石样品", "完成含水/非含水对照", "整理结果"]
+    }
+  ]
+}
+```
+
+Run:
+
+```bash
+python scripts/planka_cli.py apply-plan --file plan.json --dry-run
+python scripts/planka_cli.py apply-plan --file plan.json
+```
+
+`apply-plan` stops at the first failed operation and reports completed steps plus the failed step, so a retry can start from a known state.
 
 To create a new board/page while publishing, include `project` or `projectId`, `board`, and `createBoardIfMissing: true`. Board creation requires PLANKA project-manager permission:
 

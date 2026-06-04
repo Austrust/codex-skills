@@ -57,7 +57,7 @@ or:
 
 ## Publishing Script
 
-Use `scripts/planka_cli.py publish-card` for routine note-to-card publishing. Do not pass Chinese or multiline content through shell arguments; write a UTF-8 JSON file and pass `--file`.
+Use `scripts/planka_cli.py publish-card` for routine note-to-card publishing. Do not pass Chinese or multiline content through shell arguments or PowerShell stdin; write a UTF-8 JSON file and pass `--file`.
 
 Supported publish spec fields:
 
@@ -86,10 +86,84 @@ Behavior:
 - Creates a missing board only when `createBoardIfMissing` is true. Board creation uses `POST /api/projects/{projectId}/boards` and requires project-manager permission.
 - Creates the target list if it does not exist.
 - Uses `type: "project"` by default, because `story` cards do not render task lists.
-- Avoids duplicate cards when an exact title already exists on the board/list; updates the existing card unless `--no-update-existing` is set.
+- Avoids duplicate cards when an exact title already exists in the target list; updates the existing target-list card unless `--no-update-existing` is set.
+- Does not update same-title cards in other lists unless `moveExistingToTargetList: true` is explicitly set.
 - Creates one task list by name and adds only missing checklist items by exact text.
-- Re-fetches the card after publishing and reports card type plus task counts.
+- Re-fetches the card after publishing and verifies the requested checklist items are present.
 - Supports `--dry-run` to show planned writes without modifying Planka.
+
+## Reliable Edit Scripts
+
+Use `complete-card` for the common "finish or advance an old card" path. This prevents partial ad hoc chains where a card is moved but checklist or comments are missed.
+
+Supported complete-card spec fields:
+
+```json
+{
+  "cardId": "optional card id",
+  "project": "optional project name",
+  "projectId": "optional project id",
+  "board": "optional board name",
+  "boardId": "optional board id",
+  "title": "required when cardId is omitted",
+  "sourceList": "optional source list name for title lookup",
+  "sourceListId": "optional source list id for title lookup",
+  "moveToList": "optional target list name",
+  "moveToListId": "optional target list id",
+  "completeTasks": "all or an array of exact task names",
+  "allTasks": false,
+  "taskNames": ["optional exact task name"],
+  "comment": "optional comment text",
+  "commentMode": "append-once"
+}
+```
+
+Behavior:
+
+- Resolves the card by `cardId`, or by exact `title` inside a resolved board.
+- `sourceList` narrows title lookup and avoids ambiguous same-title cards.
+- Moves the card only when `moveToList` or `moveToListId` is present.
+- Completes all checklist items with `completeTasks: "all"` or selected exact task names with `taskNames`.
+- Appends comments once by default; use `commentMode: "always"` only when duplicate comments are intentional.
+- Re-fetches the card and verifies the requested move, task completion, and comment.
+- Supports `--dry-run` to show planned writes without modifying PLANKA.
+
+Use `apply-plan` for compound operations that must run in order:
+
+```json
+{
+  "operations": [
+    {
+      "action": "complete-card",
+      "boardId": "1784117505569063970",
+      "title": "Old card",
+      "moveToList": "已完成",
+      "completeTasks": "all",
+      "comment": "Finished."
+    },
+    {
+      "action": "publish-card",
+      "boardId": "1784117505569063970",
+      "list": "进行中",
+      "title": "Next task",
+      "type": "project",
+      "tasks": ["First step"]
+    }
+  ]
+}
+```
+
+Supported operation actions are `publish-card`, `complete-card`, and `comment`. `apply-plan` stops at the first failed operation and returns `completedSteps` plus `failedStep`, making retries auditable.
+
+For comments with Chinese or multiline text, prefer a JSON spec:
+
+```json
+{
+  "cardId": "1784666124357469306",
+  "comment": "Multiline or Chinese comment.",
+  "commentMode": "append-once"
+}
+```
 
 ## User And Project Manager Script
 

@@ -165,6 +165,14 @@ def load_json_arg(args):
     raise SystemExit("Provide --file <utf8-json> or --stdin")
 
 
+def load_optional_json_payload(args):
+    if getattr(args, "data", None):
+        return json.loads(args.data)
+    if getattr(args, "file", None) or getattr(args, "stdin", False):
+        return load_json_arg(args)
+    return None
+
+
 def require_string(data: dict, key: str) -> str:
     value = data.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -201,6 +209,25 @@ def find_exact(records, field, value):
 def max_position(records) -> float:
     positions = [record.get("position") or 0 for record in records]
     return max(positions) if positions else 0
+
+
+def summarize_error(exc):
+    if isinstance(exc, PlankaError):
+        return {
+            "type": "PlankaError",
+            "status": exc.status,
+            "message": str(exc),
+            "body": exc.body,
+        }
+    if isinstance(exc, SystemExit):
+        return {
+            "type": "SystemExit",
+            "message": str(exc.code),
+        }
+    return {
+        "type": type(exc).__name__,
+        "message": str(exc),
+    }
 
 
 def resolve_project_and_board(client: PlankaClient, spec: dict, dry_run: bool):
@@ -326,9 +353,41 @@ def resolve_or_plan_list(client: PlankaClient, board_id: str, spec: dict, dry_ru
     return target, planned_create
 
 
-def find_existing_card(snapshot, board_id: str, list_id: str | None, title: str):
+def resolve_existing_list(snapshot: dict, list_id: str | None = None, list_name: str | None = None, label: str = "list"):
+    lists = snapshot.get("included", {}).get("lists", [])
+    active_lists = [item for item in lists if item.get("type") == "active"]
+    if list_id:
+        target = find_exact(lists, "id", list_id)
+        if not target:
+            raise SystemExit(f"{label} not found: {list_id}")
+        return target
+    if list_name:
+        target = find_exact(active_lists, "name", list_name)
+        if not target:
+            raise SystemExit(f"{label} not found: {list_name}")
+        return target
+    return None
+
+
+def resolve_move_target_list(snapshot: dict, spec: dict):
+    target_list_id = optional_string(spec, "moveToListId") or optional_string(spec, "targetListId")
+    target_list_name = optional_string(spec, "moveToList") or optional_string(spec, "targetList")
+    return resolve_existing_list(snapshot, target_list_id, target_list_name, "target list")
+
+
+def source_list_from_spec(snapshot: dict, spec: dict):
+    source_list_id = optional_string(spec, "sourceListId")
+    source_list_name = optional_string(spec, "sourceList")
+    return resolve_existing_list(snapshot, source_list_id, source_list_name, "source list")
+
+
+def find_cards_by_title(snapshot, board_id: str, title: str):
     cards = snapshot.get("included", {}).get("cards", [])
-    candidates = [card for card in cards if card.get("boardId") == board_id and card.get("name") == title]
+    return [card for card in cards if card.get("boardId") == board_id and card.get("name") == title]
+
+
+def find_existing_card(snapshot, board_id: str, list_id: str | None, title: str, allow_board_fallback: bool = False):
+    candidates = find_cards_by_title(snapshot, board_id, title)
     if list_id:
         in_list = [card for card in candidates if card.get("listId") == list_id]
         if len(in_list) == 1:
@@ -336,12 +395,86 @@ def find_existing_card(snapshot, board_id: str, list_id: str | None, title: str)
         if len(in_list) > 1:
             ids = ", ".join(card["id"] for card in in_list)
             raise SystemExit(f"Multiple cards with same title in target list: {ids}")
-    if len(candidates) == 1:
-        return candidates[0]
+        if not allow_board_fallback:
+            return None
+    if allow_board_fallback:
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            ids = ", ".join(card["id"] for card in candidates)
+            raise SystemExit(f"Multiple cards with same title on board: {ids}")
+    return None
+
+
+def resolve_card_reference(client: PlankaClient, spec: dict):
+    card_id = optional_string(spec, "cardId")
+    if card_id:
+        card_payload = client.request("GET", f"/api/cards/{urllib.parse.quote(card_id)}")
+        card = card_payload["item"]
+        board_id = card.get("boardId") or optional_string(spec, "boardId")
+        if not board_id:
+            raise SystemExit("Card payload does not include boardId; provide boardId")
+        board_payload = client.request("GET", f"/api/boards/{urllib.parse.quote(board_id)}")
+        board = board_payload.get("item") if isinstance(board_payload.get("item"), dict) else None
+        if not board:
+            board = {"id": board_id, "name": None}
+        return None, board, board_payload, card
+
+    title = require_string(spec, "title")
+    project, board, _created_board, _planned_board_create = resolve_project_and_board(client, spec, dry_run=False)
+    snapshot = client.request("GET", f"/api/boards/{urllib.parse.quote(board['id'])}")
+    source_list = source_list_from_spec(snapshot, spec)
+    candidates = find_cards_by_title(snapshot, board["id"], title)
+    if source_list:
+        candidates = [card for card in candidates if card.get("listId") == source_list["id"]]
+    if len(candidates) == 0:
+        location = f" in source list {source_list['name']!r}" if source_list else ""
+        raise SystemExit(f"Card not found by title {title!r}{location}")
     if len(candidates) > 1:
         ids = ", ".join(card["id"] for card in candidates)
-        raise SystemExit(f"Multiple cards with same title on board: {ids}")
-    return None
+        raise SystemExit(f"Multiple cards match title {title!r}; matching ids: {ids}")
+    return project, board, snapshot, candidates[0]
+
+
+def list_name_for_card(snapshot: dict, card: dict):
+    current_list = find_exact(snapshot.get("included", {}).get("lists", []), "id", card.get("listId"))
+    return current_list.get("name") if current_list else None
+
+
+def comments_for_card(client: PlankaClient, card_id: str):
+    payload = client.request("GET", f"/api/cards/{urllib.parse.quote(card_id)}/comments")
+    return payload.get("items", [])
+
+
+def comment_text_exists(comments: list[dict], text: str):
+    return any(item.get("text") == text for item in comments)
+
+
+def summarize_card(client: PlankaClient, card_id: str, include_comments: bool = False):
+    card_payload = client.request("GET", f"/api/cards/{urllib.parse.quote(card_id)}")
+    card = card_payload["item"]
+    tasks = card_payload.get("included", {}).get("tasks", [])
+    board_id = card.get("boardId")
+    list_name = None
+    if board_id:
+        snapshot = client.request("GET", f"/api/boards/{urllib.parse.quote(board_id)}")
+        list_name = list_name_for_card(snapshot, card)
+    result = {
+        "id": card["id"],
+        "name": card.get("name"),
+        "boardId": board_id,
+        "listId": card.get("listId"),
+        "list": list_name,
+        "type": card.get("type"),
+        "taskCount": len(tasks),
+        "completedTaskCount": sum(1 for task in tasks if task.get("isCompleted")),
+        "commentsTotal": card.get("commentsTotal"),
+    }
+    if include_comments:
+        comments = comments_for_card(client, card_id)
+        result["commentCount"] = len(comments)
+        result["lastCommentText"] = comments[-1].get("text") if comments else None
+    return result
 
 
 def validate_publish_spec(spec: dict):
@@ -487,12 +620,23 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
     card_type = spec.get("type", "project")
     tasks = ensure_list_of_strings(spec, "tasks")
     task_list_name = optional_string(spec, "taskList") or "Tasks"
+    move_existing_to_target = bool(spec.get("moveExistingToTargetList", False))
 
     snapshot = {"included": {"cards": []}} if board.get("id") is None else client.request(
         "GET",
         f"/api/boards/{urllib.parse.quote(board['id'])}",
     )
-    existing_card = find_existing_card(snapshot, board["id"], target_list.get("id"), title)
+    same_title_cards = find_cards_by_title(snapshot, board["id"], title)
+    same_title_elsewhere = [
+        card for card in same_title_cards if target_list.get("id") and card.get("listId") != target_list.get("id")
+    ]
+    existing_card = find_existing_card(
+        snapshot,
+        board["id"],
+        target_list.get("id"),
+        title,
+        allow_board_fallback=move_existing_to_target,
+    )
     planned_actions = []
 
     if dry_run:
@@ -506,14 +650,28 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
                 "title": title,
                 "type": card_type,
                 "taskCount": len(tasks),
+                "targetList": target_list.get("name"),
             }
         )
+        if existing_card and target_list.get("id") and existing_card.get("listId") != target_list.get("id"):
+            planned_actions.append(
+                {
+                    "action": "move-existing-card",
+                    "cardId": existing_card["id"],
+                    "fromListId": existing_card.get("listId"),
+                    "toListId": target_list.get("id"),
+                    "toList": target_list.get("name"),
+                }
+            )
         return {
             "dryRun": True,
             "project": {"id": project["id"], "name": project["name"]} if project else None,
             "board": {"id": board["id"], "name": board["name"]},
             "list": {"id": target_list.get("id"), "name": target_list.get("name")},
             "existingCardId": existing_card.get("id") if existing_card else None,
+            "sameTitleElsewhere": [
+                {"id": card["id"], "listId": card.get("listId")} for card in same_title_elsewhere
+            ],
             "plannedActions": planned_actions,
         }
 
@@ -539,6 +697,24 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
                 "item"
             ]
             updated_card = True
+        if target_list.get("id") and card.get("listId") != target_list["id"]:
+            if not move_existing_to_target:
+                raise SystemExit(
+                    "Existing card is outside the target list; set moveExistingToTargetList=true to move it"
+                )
+            list_cards = [
+                item
+                for item in snapshot.get("included", {}).get("cards", [])
+                if item.get("listId") == target_list["id"]
+            ]
+            card = client.request(
+                "PATCH",
+                f"/api/cards/{urllib.parse.quote(card['id'])}",
+                {
+                    "listId": target_list["id"],
+                    "position": spec.get("position", max_position(list_cards) + 65536),
+                },
+            )["item"]
     else:
         list_cards = [
             card
@@ -596,13 +772,22 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
     final_card = client.request("GET", f"/api/cards/{urllib.parse.quote(card['id'])}")
     final_task_lists = final_card.get("included", {}).get("taskLists", [])
     final_tasks = final_card.get("included", {}).get("tasks", [])
+    final_task_list = find_exact(final_task_lists, "name", task_list_name) if tasks else None
+    final_tasks_in_list = [
+        task for task in final_tasks if final_task_list and task.get("taskListId") == final_task_list["id"]
+    ]
+    final_task_names = {task.get("name") for task in final_tasks_in_list}
+    missing_tasks = [task_name for task_name in tasks if task_name not in final_task_names]
 
     if tasks and final_card["item"].get("type") != "project":
         raise SystemExit("Published card has tasks but is not type=project")
     if tasks and not final_task_lists:
         raise SystemExit("Published card is missing task list after create")
+    if missing_tasks:
+        raise SystemExit(f"Published card is missing requested tasks: {missing_tasks}")
 
     return {
+        "ok": True,
         "dryRun": False,
         "project": {"id": project["id"], "name": project["name"]} if project else None,
         "board": {"id": board["id"], "name": board["name"]},
@@ -616,9 +801,254 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
         },
         "taskListCount": len(final_task_lists),
         "taskCount": len(final_tasks),
+        "requestedTaskCount": len(tasks),
+        "verifiedRequestedTaskCount": len(tasks) - len(missing_tasks),
+        "missingTasks": missing_tasks,
+        "sameTitleElsewhere": [
+            {"id": item["id"], "listId": item.get("listId")} for item in same_title_elsewhere
+        ],
         "createdBoard": created_board,
         "createdTaskList": created_task_list,
         "createdTaskCount": len(created_tasks),
+    }
+
+
+def requested_tasks_to_complete(spec: dict, tasks: list[dict]):
+    complete_tasks = spec.get("completeTasks")
+    all_tasks = bool(spec.get("allTasks", False)) or complete_tasks == "all"
+    if all_tasks:
+        return tasks
+
+    task_names = spec.get("taskNames")
+    if task_names is None and isinstance(complete_tasks, list):
+        task_names = complete_tasks
+    if task_names is None:
+        return []
+    if not isinstance(task_names, list) or any(not isinstance(item, str) for item in task_names):
+        raise SystemExit("taskNames or completeTasks must be a list of strings, or completeTasks must be 'all'")
+
+    wanted = [item for item in task_names if item.strip()]
+    missing = [name for name in wanted if not any(task.get("name") == name for task in tasks)]
+    if missing:
+        raise SystemExit(f"Requested tasks not found on card: {missing}")
+    return [task for task in tasks if task.get("name") in set(wanted)]
+
+
+def comment_card(client: PlankaClient, spec: dict, dry_run: bool = False):
+    text = optional_string(spec, "comment") or optional_string(spec, "text")
+    if text is None or not text.strip():
+        raise SystemExit("Missing comment text")
+    _project, board, snapshot, card = resolve_card_reference(client, spec)
+    mode = optional_string(spec, "commentMode") or "append-once"
+    if mode not in {"append-once", "always"}:
+        raise SystemExit("commentMode must be append-once or always")
+
+    comments = comments_for_card(client, card["id"])
+    already_exists = comment_text_exists(comments, text)
+    should_create = mode == "always" or not already_exists
+
+    if dry_run:
+        return {
+            "dryRun": True,
+            "action": "comment",
+            "board": {"id": board.get("id"), "name": board.get("name")},
+            "card": {"id": card["id"], "name": card.get("name")},
+            "list": {"id": card.get("listId"), "name": list_name_for_card(snapshot, card)},
+            "commentMode": mode,
+            "wouldCreateComment": should_create,
+            "alreadyExists": already_exists,
+        }
+
+    created_comment = None
+    if should_create:
+        created_comment = client.request(
+            "POST",
+            f"/api/cards/{urllib.parse.quote(card['id'])}/comments",
+            {"text": text},
+        )["item"]
+
+    final_comments = comments_for_card(client, card["id"])
+    if not comment_text_exists(final_comments, text):
+        raise SystemExit("Comment verification failed: expected text was not found after write")
+
+    return {
+        "ok": True,
+        "action": "comment",
+        "board": {"id": board.get("id"), "name": board.get("name")},
+        "card": summarize_card(client, card["id"], include_comments=True),
+        "comment": {
+            "created": created_comment is not None,
+            "skippedBecauseExists": created_comment is None and already_exists,
+            "id": created_comment.get("id") if created_comment else None,
+        },
+    }
+
+
+def complete_card(client: PlankaClient, spec: dict, dry_run: bool = False):
+    _project, board, snapshot, card = resolve_card_reference(client, spec)
+    card_snapshot = client.request("GET", f"/api/cards/{urllib.parse.quote(card['id'])}")
+    card = card_snapshot["item"]
+    tasks = card_snapshot.get("included", {}).get("tasks", [])
+    target_list = resolve_move_target_list(snapshot, spec)
+    tasks_to_complete = requested_tasks_to_complete(spec, tasks)
+    comment_text = optional_string(spec, "comment") or optional_string(spec, "text")
+    comment_mode = optional_string(spec, "commentMode") or "append-once"
+    if comment_text and comment_mode not in {"append-once", "always"}:
+        raise SystemExit("commentMode must be append-once or always")
+
+    actions = []
+    if target_list:
+        actions.append(
+            {
+                "action": "move-card",
+                "needed": card.get("listId") != target_list["id"],
+                "fromListId": card.get("listId"),
+                "fromList": list_name_for_card(snapshot, card),
+                "toListId": target_list["id"],
+                "toList": target_list.get("name"),
+            }
+        )
+    if tasks_to_complete:
+        actions.append(
+            {
+                "action": "complete-tasks",
+                "taskCount": len(tasks_to_complete),
+                "alreadyCompletedCount": sum(1 for task in tasks_to_complete if task.get("isCompleted")),
+            }
+        )
+    if comment_text:
+        comments = comments_for_card(client, card["id"])
+        actions.append(
+            {
+                "action": "comment",
+                "commentMode": comment_mode,
+                "alreadyExists": comment_text_exists(comments, comment_text),
+            }
+        )
+
+    if dry_run:
+        return {
+            "dryRun": True,
+            "action": "complete-card",
+            "board": {"id": board.get("id"), "name": board.get("name")},
+            "card": {
+                "id": card["id"],
+                "name": card.get("name"),
+                "listId": card.get("listId"),
+                "list": list_name_for_card(snapshot, card),
+            },
+            "plannedActions": actions,
+        }
+
+    moved = False
+    if target_list and card.get("listId") != target_list["id"]:
+        list_cards = [
+            item
+            for item in snapshot.get("included", {}).get("cards", [])
+            if item.get("listId") == target_list["id"]
+        ]
+        card = client.request(
+            "PATCH",
+            f"/api/cards/{urllib.parse.quote(card['id'])}",
+            {
+                "listId": target_list["id"],
+                "position": spec.get("position", max_position(list_cards) + 65536),
+            },
+        )["item"]
+        moved = True
+
+    changed_tasks = []
+    for task in tasks_to_complete:
+        if task.get("isCompleted"):
+            continue
+        changed = client.request(
+            "PATCH",
+            f"/api/tasks/{urllib.parse.quote(task['id'])}",
+            {"isCompleted": True},
+        )["item"]
+        changed_tasks.append(changed)
+
+    comment_result = None
+    if comment_text:
+        comment_spec = dict(spec)
+        comment_spec["cardId"] = card["id"]
+        comment_result = comment_card(client, comment_spec, dry_run=False)["comment"]
+
+    final_card_payload = client.request("GET", f"/api/cards/{urllib.parse.quote(card['id'])}")
+    final_card = final_card_payload["item"]
+    final_tasks = final_card_payload.get("included", {}).get("tasks", [])
+    final_task_by_id = {task["id"]: task for task in final_tasks}
+    incomplete_requested = [
+        task.get("name")
+        for task in tasks_to_complete
+        if not final_task_by_id.get(task["id"], {}).get("isCompleted")
+    ]
+    if incomplete_requested:
+        raise SystemExit(f"Task completion verification failed: {incomplete_requested}")
+    if target_list and final_card.get("listId") != target_list["id"]:
+        raise SystemExit("Card move verification failed: card is not in target list after write")
+
+    return {
+        "ok": True,
+        "action": "complete-card",
+        "board": {"id": board.get("id"), "name": board.get("name")},
+        "card": summarize_card(client, card["id"], include_comments=bool(comment_text)),
+        "moved": moved,
+        "completedTaskCount": len(changed_tasks),
+        "requestedTaskCount": len(tasks_to_complete),
+        "comment": comment_result,
+    }
+
+
+def apply_plan(client: PlankaClient, spec: dict, dry_run: bool = False):
+    operations = spec.get("operations")
+    if not isinstance(operations, list) or not operations:
+        raise SystemExit("Plan spec requires a non-empty operations array")
+
+    results = []
+    for index, operation in enumerate(operations):
+        if not isinstance(operation, dict):
+            return {
+                "ok": False,
+                "dryRun": dry_run,
+                "completedSteps": results,
+                "failedStep": {
+                    "index": index,
+                    "error": {"type": "SystemExit", "message": "Each operation must be a JSON object"},
+                },
+            }
+        try:
+            action = require_string(operation, "action")
+            if action == "publish-card":
+                result = publish_card(
+                    client,
+                    operation,
+                    dry_run=dry_run,
+                    update_existing=not bool(operation.get("noUpdateExisting", False)),
+                )
+            elif action == "complete-card":
+                result = complete_card(client, operation, dry_run=dry_run)
+            elif action == "comment":
+                result = comment_card(client, operation, dry_run=dry_run)
+            else:
+                raise SystemExit(f"Unsupported plan operation: {action}")
+            results.append({"index": index, "action": action, "result": result})
+        except (PlankaError, SystemExit) as exc:
+            return {
+                "ok": False,
+                "dryRun": dry_run,
+                "completedSteps": results,
+                "failedStep": {
+                    "index": index,
+                    "action": operation.get("action"),
+                    "error": summarize_error(exc),
+                },
+            }
+
+    return {
+        "ok": True,
+        "dryRun": dry_run,
+        "steps": results,
     }
 
 
@@ -660,6 +1090,9 @@ def cmd_create_card(args):
     payload = {"type": args.type, "name": args.name}
     if args.position is not None:
         payload["position"] = args.position
+    else:
+        cards_payload = client.request("GET", f"/api/lists/{urllib.parse.quote(args.list_id)}/cards")
+        payload["position"] = max_position(cards_payload.get("items", [])) + 65536
     if args.description is not None:
         payload["description"] = args.description
     if args.due_date is not None:
@@ -698,14 +1131,37 @@ def cmd_move_card(args):
 
 def cmd_comment(args):
     client = make_client()
-    payload = {"text": args.text}
-    print_json(client.request("POST", f"/api/cards/{args.card_id}/comments", payload))
+    if args.file or args.stdin:
+        spec = load_json_arg(args)
+    else:
+        if not args.card_id:
+            raise SystemExit("Provide --card-id or a JSON spec with --file/--stdin")
+        if args.text is None:
+            raise SystemExit("Provide --text or a JSON spec with --file/--stdin")
+        spec = {
+            "cardId": args.card_id,
+            "comment": args.text,
+            "commentMode": "append-once" if args.skip_if_exists else "always",
+        }
+    print_json(comment_card(client, spec, dry_run=args.dry_run))
 
 
 def cmd_publish_card(args):
     client = make_client()
     spec = load_json_arg(args)
     print_json(publish_card(client, spec, dry_run=args.dry_run, update_existing=not args.no_update_existing))
+
+
+def cmd_complete_card(args):
+    client = make_client()
+    spec = load_json_arg(args)
+    print_json(complete_card(client, spec, dry_run=args.dry_run))
+
+
+def cmd_apply_plan(args):
+    client = make_client()
+    spec = load_json_arg(args)
+    print_json(apply_plan(client, spec, dry_run=args.dry_run))
 
 
 def cmd_ensure_project_managers(args):
@@ -716,7 +1172,7 @@ def cmd_ensure_project_managers(args):
 
 def cmd_raw(args):
     client = make_client()
-    payload = json.loads(args.data) if args.data else None
+    payload = load_optional_json_payload(args)
     print_json(client.request(args.method, args.path, payload))
 
 
@@ -774,8 +1230,12 @@ def build_parser():
     p.set_defaults(func=cmd_move_card)
 
     p = sub.add_parser("comment")
-    p.add_argument("--card-id", required=True)
-    p.add_argument("--text", required=True)
+    p.add_argument("--card-id")
+    p.add_argument("--text")
+    p.add_argument("--file", help="UTF-8 JSON comment spec")
+    p.add_argument("--stdin", action="store_true", help="Read UTF-8 JSON comment spec from stdin")
+    p.add_argument("--dry-run", action="store_true", help="Resolve the target and duplicate status only")
+    p.add_argument("--skip-if-exists", action="store_true", help="Skip creating a duplicate exact comment")
     p.set_defaults(func=cmd_comment)
 
     p = sub.add_parser("publish-card")
@@ -789,6 +1249,18 @@ def build_parser():
     )
     p.set_defaults(func=cmd_publish_card)
 
+    p = sub.add_parser("complete-card")
+    p.add_argument("--file", help="UTF-8 JSON complete-card spec")
+    p.add_argument("--stdin", action="store_true", help="Read UTF-8 JSON complete-card spec from stdin")
+    p.add_argument("--dry-run", action="store_true", help="Resolve targets and show planned writes only")
+    p.set_defaults(func=cmd_complete_card)
+
+    p = sub.add_parser("apply-plan")
+    p.add_argument("--file", help="UTF-8 JSON ordered operation plan")
+    p.add_argument("--stdin", action="store_true", help="Read UTF-8 JSON ordered operation plan from stdin")
+    p.add_argument("--dry-run", action="store_true", help="Resolve all operations without modifying PLANKA")
+    p.set_defaults(func=cmd_apply_plan)
+
     p = sub.add_parser("ensure-project-managers")
     p.add_argument("--file", help="UTF-8 JSON spec")
     p.add_argument("--stdin", action="store_true", help="Read UTF-8 JSON spec from stdin")
@@ -798,6 +1270,8 @@ def build_parser():
     p.add_argument("--method", required=True)
     p.add_argument("--path", required=True)
     p.add_argument("--data")
+    p.add_argument("--file", help="UTF-8 JSON request body")
+    p.add_argument("--stdin", action="store_true", help="Read UTF-8 JSON request body from stdin")
     p.set_defaults(func=cmd_raw)
 
     return parser

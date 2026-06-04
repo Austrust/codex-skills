@@ -41,4 +41,11 @@ python scripts/planka_cli.py publish-card --file draft.json --dry-run
 python scripts/planka_cli.py publish-card --file draft.json
 ```
 
+Complete existing cards or run ordered compound edits from UTF-8 JSON specs:
+
+```bash
+python scripts/planka_cli.py complete-card --file complete.json --dry-run
+python scripts/planka_cli.py apply-plan --file plan.json --dry-run
+```
+
 Keep credentials in environment variables or stdin. Do not commit API keys, tokens, passwords, cookies, or long-lived credential files.
