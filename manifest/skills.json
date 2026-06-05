@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-05",
+  "owner": "Austrust",
+  "collection_repository": "https://github.com/Austrust/codex-skills.git",
+  "skills": [
+    {
+      "name": "research-folder-organizer",
+      "repository": "https://github.com/Austrust/codex-skill-research-folder-organizer.git",
+      "branch": "main",
+      "pinned_commit": "401e7d0a61f0ffc8ee858a6c262f32868e120634",
+      "submodule_path": "repos/research-folder-organizer",
+      "source_path": "repos/research-folder-organizer/research-folder-organizer",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "planka-kanban",
+      "repository": "https://github.com/Austrust/planka-kanban.git",
+      "branch": "main",
+      "pinned_commit": "cf73085e298ab3d4e89ae169783a3bdd7b7e9de4",
+      "submodule_path": "repos/planka-kanban",
+      "source_path": "repos/planka-kanban",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "scientific-data-report",
+      "repository": "https://github.com/Austrust/scientific-data-report.git",
+      "branch": "main",
+      "pinned_commit": "9b7732127325394d2b559797c17401ecb984dab5",
+      "submodule_path": "repos/scientific-data-report",
+      "source_path": "repos/scientific-data-report",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "research-report-index",
+      "repository": "https://github.com/Austrust/research-report-index.git",
+      "branch": "main",
+      "pinned_commit": "ef2ce820ed2c425fb6377a5caf3971319e93148d",
+      "submodule_path": "repos/research-report-index",
+      "source_path": "repos/research-report-index",
+      "targets": ["codex", "agents"]
+    }
+  ]
+}

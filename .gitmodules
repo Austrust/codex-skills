@@ -1,0 +1,16 @@
+[submodule "repos/research-folder-organizer"]
+	path = repos/research-folder-organizer
+	url = https://github.com/Austrust/codex-skill-research-folder-organizer.git
+	branch = main
+[submodule "repos/planka-kanban"]
+	path = repos/planka-kanban
+	url = https://github.com/Austrust/planka-kanban.git
+	branch = main
+[submodule "repos/scientific-data-report"]
+	path = repos/scientific-data-report
+	url = https://github.com/Austrust/scientific-data-report.git
+	branch = main
+[submodule "repos/research-report-index"]
+	path = repos/research-report-index
+	url = https://github.com/Austrust/research-report-index.git
+	branch = main
