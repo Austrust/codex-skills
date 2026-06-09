@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-05",
+  "generated_at": "2026-06-09",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -38,6 +38,15 @@
       "pinned_commit": "ef2ce820ed2c425fb6377a5caf3971319e93148d",
       "submodule_path": "repos/research-report-index",
       "source_path": "repos/research-report-index",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "zotero-literature-guide",
+      "repository": "https://github.com/Austrust/codex-skill-zotero-literature-guide.git",
+      "branch": "main",
+      "pinned_commit": "5d6fa9036a92f0d255b6683e0a9217bfa9dfe9a9",
+      "submodule_path": "repos/zotero-literature-guide",
+      "source_path": "repos/zotero-literature-guide",
       "targets": ["codex", "agents"]
     }
   ]

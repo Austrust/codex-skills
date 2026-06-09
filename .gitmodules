@@ -14,3 +14,7 @@
 	path = repos/research-report-index
 	url = https://github.com/Austrust/research-report-index.git
 	branch = main
+[submodule "repos/zotero-literature-guide"]
+	path = repos/zotero-literature-guide
+	url = https://github.com/Austrust/codex-skill-zotero-literature-guide.git
+	branch = main
