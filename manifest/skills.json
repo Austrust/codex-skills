@@ -44,7 +44,7 @@
       "name": "zotero-literature-guide",
       "repository": "https://github.com/Austrust/codex-skill-zotero-literature-guide.git",
       "branch": "main",
-      "pinned_commit": "5d6fa9036a92f0d255b6683e0a9217bfa9dfe9a9",
+      "pinned_commit": "bc2258b56ddfbcb03ca78fbdbf362aae40478a58",
       "submodule_path": "repos/zotero-literature-guide",
       "source_path": "repos/zotero-literature-guide",
       "targets": ["codex", "agents"]
