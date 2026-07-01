@@ -12,6 +12,7 @@ bootstrap point for new machines.
 | `planka-kanban` | `Austrust/planka-kanban` | `repos/planka-kanban` |
 | `scientific-data-report` | `Austrust/scientific-data-report` | `repos/scientific-data-report` |
 | `research-report-index` | `Austrust/research-report-index` | `repos/research-report-index` |
+| `research-readme-index` | `Austrust/research-readme-index` | `repos/research-readme-index` |
 | `zotero-literature-guide` | `Austrust/codex-skill-zotero-literature-guide` | `repos/zotero-literature-guide` |
 
 The exact pinned commits are recorded in `manifest/skills.json` and in the

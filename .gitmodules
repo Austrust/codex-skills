@@ -18,3 +18,7 @@
 	path = repos/zotero-literature-guide
 	url = https://github.com/Austrust/codex-skill-zotero-literature-guide.git
 	branch = main
+[submodule "repos/research-readme-index"]
+	path = repos/research-readme-index
+	url = https://github.com/Austrust/research-readme-index.git
+	branch = main

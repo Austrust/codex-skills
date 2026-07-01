@@ -13,6 +13,8 @@ from the current checkout search.
 - `planka-kanban`
 - `scientific-data-report`
 - `research-report-index`
+- `zotero-literature-guide`
+- `research-readme-index`
 
 ## Installed Under `C:\Users\A_Tas\.codex\skills`
 
