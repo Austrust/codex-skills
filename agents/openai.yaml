@@ -1,0 +1,7 @@
+interface:
+  display_name: "Research README Index"
+  short_description: "Maintain lightweight README navigation"
+  default_prompt: "Use $research-readme-index to audit and update README-based navigation for the current research project changes."
+
+policy:
+  allow_implicit_invocation: true
