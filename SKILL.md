@@ -68,19 +68,19 @@ Parent README files list direct children only. Do not make the root README carry
 3. Run the audit script when useful:
 
    ```powershell
-   .\.venv\Scripts\python.exe C:\Users\A_Tas\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root .
+   .\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root .
    ```
 
    With explicit paths:
 
    ```powershell
-   .\.venv\Scripts\python.exe C:\Users\A_Tas\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root . --paths 10_tasks\T016_example\runs\20260605_new_run
+   .\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root . --paths 10_tasks\T016_example\runs\20260605_new_run
    ```
 
    Full audit:
 
    ```powershell
-   .\.venv\Scripts\python.exe C:\Users\A_Tas\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root . --full
+   .\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root . --full
    ```
 
 4. Patch README files minimally:
