@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-01",
+  "generated_at": "2026-07-03",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -8,7 +8,7 @@
       "name": "research-folder-organizer",
       "repository": "https://github.com/Austrust/codex-skill-research-folder-organizer.git",
       "branch": "main",
-      "pinned_commit": "401e7d0a61f0ffc8ee858a6c262f32868e120634",
+      "pinned_commit": "3ae0cd104dbe7310ff8631bc39b72e44af00e8f6",
       "submodule_path": "repos/research-folder-organizer",
       "source_path": "repos/research-folder-organizer/research-folder-organizer",
       "targets": ["codex", "agents"]
@@ -26,7 +26,7 @@
       "name": "scientific-data-report",
       "repository": "https://github.com/Austrust/scientific-data-report.git",
       "branch": "main",
-      "pinned_commit": "9b7732127325394d2b559797c17401ecb984dab5",
+      "pinned_commit": "38138c6382eaa964961454e026124466acc99e23",
       "submodule_path": "repos/scientific-data-report",
       "source_path": "repos/scientific-data-report",
       "targets": ["codex", "agents"]
@@ -44,7 +44,7 @@
       "name": "research-readme-index",
       "repository": "https://github.com/Austrust/research-readme-index.git",
       "branch": "main",
-      "pinned_commit": "d7c1897b0b3068048c037051deb5950e14c7caa9",
+      "pinned_commit": "4edb9a252d93fc26afa132aaef7619567679705e",
       "submodule_path": "repos/research-readme-index",
       "source_path": "repos/research-readme-index",
       "targets": ["codex", "agents"]
@@ -53,7 +53,7 @@
       "name": "zotero-literature-guide",
       "repository": "https://github.com/Austrust/codex-skill-zotero-literature-guide.git",
       "branch": "main",
-      "pinned_commit": "bc2258b56ddfbcb03ca78fbdbf362aae40478a58",
+      "pinned_commit": "66451ef69d36edaabafa8a0f8bc4fcc98269589e",
       "submodule_path": "repos/zotero-literature-guide",
       "source_path": "repos/zotero-literature-guide",
       "targets": ["codex", "agents"]
