@@ -177,7 +177,7 @@ def load_project_config(root: Path) -> dict:
             files[path.name] = safe_read(path)
 
     config_text = "\n".join(files.values()).lower()
-    graphify_required = (root / "graphify-out").exists() or "graphify" in config_text
+    graphify_present = (root / "graphify-out").exists() or "graphify" in config_text
     venv_required = ".venv" in config_text and "python" in config_text
     has_git = (root / ".git").exists()
 
@@ -191,7 +191,8 @@ def load_project_config(root: Path) -> dict:
     return {
         "files_found": sorted(files),
         "has_git": has_git,
-        "graphify_required": graphify_required,
+        "graphify_present": graphify_present,
+        "graphify_required": False,
         "project_venv_required": venv_required,
         "ignore_patterns": ignore_patterns,
         "language": detect_language(root, files),
@@ -334,8 +335,38 @@ def scan_tree(root: Path, config: dict) -> dict:
         "protected_examples": protected_examples[:20],
         "archive_examples": archive_examples[:20],
         "cache_examples": cache_examples[:20],
+        "task_readme_audit": scan_task_readmes(root),
         "errors": errors[:50],
     }
+
+
+def scan_task_readmes(root: Path) -> list[dict]:
+    tasks_root = root / "10_tasks"
+    if not tasks_root.exists() or not tasks_root.is_dir():
+        return []
+
+    rows = []
+    for task_dir in sorted(tasks_root.iterdir(), key=lambda p: p.name.lower()):
+        if not task_dir.is_dir() or not task_dir.name.startswith("T"):
+            continue
+        readme_path = task_dir / "README.md"
+        readme_text = safe_read(readme_path) if readme_path.exists() else ""
+        runs_root = task_dir / "runs"
+        runs = []
+        if runs_root.exists() and runs_root.is_dir():
+            runs = sorted([p.name for p in runs_root.iterdir() if p.is_dir()])
+        documented_runs = [run for run in runs if run in readme_text]
+        missing_runs = [run for run in runs if run not in readme_text]
+        rows.append(
+            {
+                "task": rel(task_dir, root),
+                "has_readme": readme_path.exists(),
+                "runs": len(runs),
+                "runs_documented_by_name": len(documented_runs),
+                "missing_run_mentions": missing_runs[:8],
+            }
+        )
+    return rows
 
 
 def summarize_entry(path: Path, root: Path, config: dict) -> EntrySummary:
@@ -419,7 +450,8 @@ def write_report(path: Path, data: dict) -> None:
     lines.append(f"- Project language: `{config['language']}`")
     lines.append(f"- Suggested organizer wiki: `{config['organizer_wiki_name']}`")
     lines.append(f"- Config files found: {', '.join(config['files_found']) or 'none'}")
-    lines.append(f"- Graphify required: `{config['graphify_required']}`")
+    lines.append(f"- Graphify present or mentioned: `{config.get('graphify_present', False)}`")
+    lines.append("- Graphify maintenance: disabled by this skill")
     lines.append(f"- Project venv required: `{config['project_venv_required']}`")
     lines.append(f"- Git repo: `{git['is_repo']}`")
     if git["status_short"]:
@@ -445,6 +477,23 @@ def write_report(path: Path, data: dict) -> None:
             f"| `{entry['path']}` | `{entry['lifecycle']}` | {entry['files']} | "
             f"{human_size(entry['bytes'])} | {entry.get('last_modified') or ''} | {reasons} |"
         )
+    lines.append("")
+    lines.append("## Task README Run Index Audit")
+    lines.append("")
+    task_rows = scan.get("task_readme_audit") or []
+    if task_rows:
+        lines.append("| Task | README | Runs | Runs Mentioned In README | Missing Run Mentions |")
+        lines.append("| --- | --- | ---: | ---: | --- |")
+        for row in task_rows:
+            missing = ", ".join(f"`{name}`" for name in row["missing_run_mentions"]) or ""
+            if len(row["missing_run_mentions"]) >= 8:
+                missing += ", ..."
+            lines.append(
+                f"| `{row['task']}` | `{row['has_readme']}` | {row['runs']} | "
+                f"{row['runs_documented_by_name']} | {missing} |"
+            )
+    else:
+        lines.append("- No `10_tasks/T###` task folders found.")
     lines.append("")
     lines.append("## Extension Counts")
     lines.append("")
@@ -492,6 +541,8 @@ def write_batches(path: Path, data: dict) -> None:
         "",
         "## Batch 1: Entry Points And Indexes",
         "",
+        "- Create or update each `10_tasks/T###_*/README.md` as the canonical task landing page.",
+        "- Each task README should explain the task in low-context prose and include a short entry for every `runs/*` folder.",
         f"- Create or update organizer wiki: `{config['organizer_wiki_name']}`.",
         "- Keep existing project README/Wiki untouched unless separately approved.",
         "- Link this inventory and future execution records from `_organizer/README.md`.",
@@ -525,15 +576,11 @@ def write_batches(path: Path, data: dict) -> None:
     lines.extend(
         [
             "",
-            "## Batch 4: Graphify",
-            "",
-            f"- Graphify required: `{config['graphify_required']}`.",
-            "- If required and content/index changes are approved, rebuild graphify with the project Python environment.",
-            "",
-            "## Batch 5: Git",
+            "## Batch 4: Git",
             "",
             "- Stage only organizer-created files or approved archive moves.",
             "- Do not include unrelated dirty worktree changes.",
+            "- Do not update or stage graphify outputs as part of this organizer workflow.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
