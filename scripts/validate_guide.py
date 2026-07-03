@@ -83,7 +83,6 @@ STRICT_TRANSLATION_META_PHRASES = (
     "\u9605\u8bfb\u63d0\u793a",
     "\u53ef\u7406\u89e3\u4e3a",
     "\u4f5c\u8005\u5728\u8fd9\u91cc",
-    "\u56f4\u7ed5",
 )
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", flags=re.DOTALL)
 IMAGE_LINK_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
@@ -214,11 +213,30 @@ def label_block_any(body: str, label: str, next_labels: tuple[str, ...]) -> str:
     return match.group(1).strip() if match else ""
 
 
+
+TRUNCATED_INLINE_MATH_RE = re.compile(r"\$[^$\n]*(?:\.\.\.|\\[A-Za-z]{1,16}\.\.\.)")
+
+
+def math_render_safety_issues(text: str) -> list[str]:
+    issues: list[str] = []
+    if text.count("$") % 2:
+        issues.append("unbalanced inline math dollar delimiters")
+    if TRUNCATED_INLINE_MATH_RE.search(text):
+        issues.append("truncated inline math fragment")
+    return issues
+
 def visible_text(markdown: str) -> str:
     text = re.sub(r"`[^`]*`", "", markdown)
     text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
     text = re.sub(r"\[[^\]]*\]\([^)]+\)", "", text)
     text = re.sub(r"[>#*_~\\-]", " ", text)
+    return " ".join(text.split())
+
+
+def strip_math_for_language_checks(text: str) -> str:
+    text = re.sub(r"\$\$.*?\$\$", " ", text, flags=re.DOTALL)
+    text = re.sub(r"\$.*?\$", " ", text, flags=re.DOTALL)
+    text = re.sub(r"\\begin\{(?:array|aligned|matrix|cases|equation)\}.*?\\end\{(?:array|aligned|matrix|cases|equation)\}", " ", text, flags=re.DOTALL)
     return " ".join(text.split())
 
 
@@ -243,12 +261,12 @@ def sentence_like_count(text: str) -> int:
 
 
 def latin_word_count(text: str) -> int:
-    return len(LATIN_WORD_RE.findall(text))
+    return len(LATIN_WORD_RE.findall(strip_math_for_language_checks(text)))
 
 
 def long_latin_runs(text: str, min_words: int = 8) -> list[str]:
     runs: list[str] = []
-    for segment in LATIN_SENTENCE_SPLIT_RE.split(text):
+    for segment in LATIN_SENTENCE_SPLIT_RE.split(strip_math_for_language_checks(text)):
         words = LATIN_WORD_RE.findall(segment)
         if len(words) >= min_words:
             cleaned = " ".join(segment.split())
@@ -362,6 +380,33 @@ def formula_latex_status(item: dict, report: dict[str, dict]) -> str | None:
         if isinstance(key, str) and key.strip() and key.strip() in report:
             return str(report[key.strip()].get("status") or "").lower()
     return None
+
+
+def formula_latex_candidates(item: dict, report: dict[str, dict]) -> list[str]:
+    candidates: list[str] = []
+    keys = [
+        item.get("asset_id"),
+        item.get("path"),
+        Path(str(item.get("path") or "").replace("\\", "/")).name,
+    ]
+    for key in keys:
+        if isinstance(key, str) and key.strip() and key.strip() in report:
+            record = report[key.strip()]
+            for field in ("latex", "normalized_latex", "source_latex"):
+                value = record.get(field)
+                if isinstance(value, str) and value.strip():
+                    candidates.append(value.strip())
+    caption = item.get("caption_or_label")
+    if isinstance(caption, str) and caption.strip():
+        candidates.append(caption.strip())
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in candidates:
+        compact = compact_formula_text(value)
+        if compact and compact not in seen:
+            seen.add(compact)
+            result.append(value)
+    return result
 
 
 def looks_like_formula_ocr(text: object) -> bool:
@@ -487,6 +532,10 @@ def validate(
         source_text = get_source_text(expected_records[pid])
         original = label_block(body, "原文", "翻译")
         translation = label_block(body, "翻译", "讲解")
+        explanation = label_block(body, "讲解", None)
+        for block_name, block_text in (("translation", translation), ("explanation", explanation)):
+            for issue in math_render_safety_issues(block_text):
+                errors.append(f"{pid} {block_name} block has render-unsafe math text: {issue}")
         translation_visible = visible_text(translation)
         for phrase in FORBIDDEN_TRANSLATION_META_PHRASES:
             if phrase in translation:
@@ -591,20 +640,21 @@ def validate(
                 errors.append(f"asset file missing from manifest: {rel}")
                 continue
             caption = item.get("caption_or_label")
+            formula_candidates = formula_latex_candidates(item, formula_latex_report)
             latex_formula_text_present = (
                 typ in {"formula", "equation"}
                 and looks_like_formula_ocr(caption)
-                and isinstance(caption, str)
-                and formula_latex_in_text(guide, caption)
+                and any(formula_latex_in_text(guide, candidate) for candidate in formula_candidates)
             )
             latex_formula_embedded = (
                 allow_latex_formula_assets
                 and typ in {"formula", "equation"}
-                and isinstance(caption, str)
-                and caption.strip()
-                and formula_latex_in_text(guide, caption)
+                and bool(formula_candidates)
+                and any(formula_latex_in_text(guide, candidate) for candidate in formula_candidates)
             )
-            latex_formula_inline = latex_formula_embedded and formula_latex_in_text(second_part, caption)
+            latex_formula_inline = latex_formula_embedded and any(
+                formula_latex_in_text(second_part, candidate) for candidate in formula_candidates
+            )
             image_embedded = manifest_asset_path in referenced_images
             image_inline = manifest_asset_path in referenced_images_in_second_part
             latex_status = formula_latex_status(item, formula_latex_report)

@@ -224,8 +224,11 @@ Formula compile gate:
 ```powershell
 python <skill-root>\scripts\validate_formula_latex.py `
   --asset-manifest <package>\asset_manifest.json `
+  --formula-overrides <package>\context\formula_latex_overrides.json `
   --json-output <package>\formula_latex_validation.json `
   --json
+
+Omit `--formula-overrides` when no audited manual formula transcription is needed.
 ```
 
 If this report is `fail`, do not disable math parsing globally. Use the report to fall back only failed formulas to images.

@@ -89,6 +89,33 @@ def formula_latex_in_guide(guide: str, latex: object) -> bool:
     return stripped in guide or compact_formula_text(stripped) in compact_formula_text(guide)
 
 
+def formula_latex_candidates(item: dict[str, Any], report_by_key: dict[str, dict[str, Any]]) -> list[str]:
+    candidates: list[str] = []
+    keys = [
+        item.get("asset_id"),
+        item.get("path"),
+        Path(str(item.get("path") or "").replace("\\", "/")).name,
+    ]
+    for key in keys:
+        if isinstance(key, str) and key.strip() and key.strip() in report_by_key:
+            record = report_by_key[key.strip()]
+            for field in ("latex", "normalized_latex", "source_latex"):
+                value = record.get(field)
+                if isinstance(value, str) and value.strip():
+                    candidates.append(value.strip())
+    caption = item.get("caption_or_label")
+    if isinstance(caption, str) and caption.strip():
+        candidates.append(caption.strip())
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in candidates:
+        compact = compact_formula_text(value)
+        if compact and compact not in seen:
+            seen.add(compact)
+            result.append(value)
+    return result
+
+
 @dataclass
 class Finding:
     severity: str
@@ -446,6 +473,7 @@ class Harness:
             image_links.setdefault((self.package / target).resolve(), []).append(alt)
 
         formula_status_by_key: dict[str, str] = {}
+        formula_record_by_key: dict[str, dict[str, Any]] = {}
         formula_report_present = isinstance(formula_report, dict) and isinstance(formula_report.get("formulas"), list)
         if formula_report_present:
             for record in formula_report.get("formulas", []):
@@ -456,6 +484,8 @@ class Harness:
                     if isinstance(key, str) and key.strip():
                         formula_status_by_key[key.strip()] = rec_status
                         formula_status_by_key[Path(key.replace("\\", "/")).name] = rec_status
+                        formula_record_by_key[key.strip()] = record
+                        formula_record_by_key[Path(key.replace("\\", "/")).name] = record
 
         formula_image_embedded = 0
         formula_latex_embedded = 0
@@ -483,7 +513,8 @@ class Harness:
                 continue
             alts = image_links.get(asset_path, [])
             caption = item.get("caption_or_label")
-            latex_embedded = formula_latex_in_guide(guide, caption)
+            latex_candidates = formula_latex_candidates(item, formula_record_by_key)
+            latex_embedded = any(formula_latex_in_guide(guide, candidate) for candidate in latex_candidates)
             latex_status = None
             for key in (item.get("asset_id"), rel, Path(rel.replace("\\", "/")).name):
                 if isinstance(key, str) and key.strip() and key.strip() in formula_status_by_key:

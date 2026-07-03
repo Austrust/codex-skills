@@ -205,6 +205,22 @@ def formula_latex_allowed(asset: dict, validation: dict[str, dict]) -> bool:
     return False
 
 
+def formula_latex_for_asset(asset: dict, validation: dict[str, dict]) -> str:
+    caption = str(asset.get("caption_or_label") or "").strip()
+    keys = [
+        asset.get("asset_id"),
+        asset.get("path"),
+        Path(str(asset.get("path") or "").replace("\\", "/")).name,
+    ]
+    for key in keys:
+        if isinstance(key, str) and key.strip() and key.strip() in validation:
+            record = validation[key.strip()]
+            latex = str(record.get("latex") or record.get("normalized_latex") or "").strip()
+            if latex:
+                return latex
+    return caption
+
+
 def find_caption_annotation(asset: dict, caption: str, annotations: dict[str, dict]) -> dict | None:
     keys = [
         asset.get("asset_id"),
@@ -262,6 +278,28 @@ def find_paragraph(paragraphs: list[dict], text: str, start: int) -> int | None:
     return None
 
 
+def paragraph_for_content_index(paragraphs: list[dict], content_index: int) -> int | None:
+    best: int | None = None
+    for idx, para in enumerate(paragraphs):
+        indices = para.get("content_indices")
+        if isinstance(indices, list) and indices:
+            numeric = [int(x) for x in indices if isinstance(x, int)]
+            start = min(numeric) if numeric else None
+            end = max(numeric) if numeric else start
+        else:
+            raw_start = para.get("content_index")
+            raw_end = para.get("end_content_index", raw_start)
+            start = int(raw_start) if isinstance(raw_start, int) else None
+            end = int(raw_end) if isinstance(raw_end, int) else start
+        if start is None:
+            continue
+        if start <= content_index and (best is None or start >= int(paragraphs[best].get("content_index") or -1)):
+            best = idx
+        if start <= content_index <= (end if end is not None else start):
+            return idx
+    return best
+
+
 def build_events(
     content_list: list[dict],
     paragraphs: list[dict],
@@ -279,7 +317,7 @@ def build_events(
     assignments: list[dict] = []
     warnings: list[str] = []
 
-    for item in content_list:
+    for content_index, item in enumerate(content_list):
         if not isinstance(item, dict):
             continue
         typ = str(item.get("type", "text"))
@@ -309,7 +347,9 @@ def build_events(
         if not asset:
             warnings.append(f"asset missing from manifest: {source_img}")
             continue
-        if not last_pid:
+        anchor_idx = paragraph_for_content_index(paragraphs, content_index)
+        anchor_pid = str(paragraphs[anchor_idx]["id"]) if anchor_idx is not None else last_pid
+        if not anchor_pid:
             warnings.append(f"asset has no preceding paragraph: {asset.get('asset_id') or source_img}")
             continue
         rel = str(asset.get("path") or "")
@@ -324,7 +364,7 @@ def build_events(
             and caption.strip().startswith("$$")
             and formula_latex_allowed(asset, formula_validation)
         ):
-            rendered = caption.strip()
+            rendered = formula_latex_for_asset(asset, formula_validation)
         else:
             rendered = f"![]({rel})"
             if asset_type == "formula" and asset_mode == "latex" and caption.strip().startswith("$$"):
@@ -334,7 +374,7 @@ def build_events(
                 note = caption_note(asset, caption, caption_annotation)
                 if caption.strip() and not caption_annotation:
                     warnings.append(f"image/table caption has no translation annotation: {asset.get('asset_id') or rel}")
-        events[last_pid].append(
+        events[anchor_pid].append(
             {
                 "kind": "asset",
                 "asset_type": asset_type,
@@ -346,6 +386,7 @@ def build_events(
                 "has_caption_translation": bool(caption_annotation and str(caption_annotation.get("translation") or caption_annotation.get("caption_translation") or "").strip()),
                 "has_caption_explanation": bool(caption_annotation and str(caption_annotation.get("explanation") or caption_annotation.get("caption_explanation") or "").strip()),
                 "order": order_index,
+                "content_index": content_index,
                 "page_idx": item.get("page_idx"),
             }
         )
@@ -354,7 +395,7 @@ def build_events(
                 "asset_id": asset.get("asset_id"),
                 "asset_type": asset_type,
                 "path": rel,
-                "paragraph_id": last_pid,
+                "paragraph_id": anchor_pid,
                 "source_pdf_page": item.get("page_idx"),
                 "mode": "latex" if rendered.startswith("$$") else "image",
                 "caption": caption if asset_type in {"image", "figure", "table"} else "",
@@ -372,24 +413,57 @@ def trim_asset_overview(first_part: str) -> str:
         "### 8. 图表与公式导读\n\n"
         "图表与公式按照原文出现顺序嵌入在第二部分逐段导读中；本节只给出总体阅读提示，避免在正文前重复堆叠公式和图片。\n\n"
     )
-    pattern = re.compile(r"^### 8\. 图表与公式资产导读\s*\n.*?(?=^### \d+\.|\Z)", flags=re.S | re.M)
+    pattern = re.compile(r"^### 8\. 图表与公式(?:资产)?导读\s*\n.*?(?=^### \d+\.|\Z)", flags=re.S | re.M)
     if pattern.search(first_part):
         return pattern.sub(replacement, first_part)
     return first_part
 
 
 def build_original(events: list[dict], fallback_text: str) -> str:
-    if not events:
-        return fallback_text
-    parts: list[str] = []
+    parts: list[str] = [fallback_text]
     for event in sorted(events, key=lambda x: x.get("order", 0)):
-        if event["kind"] == "text":
-            parts.append(event["text"])
-        elif event["kind"] == "asset":
+        if event["kind"] == "asset":
             parts.append(event["rendered"])
             if event.get("caption_note"):
                 parts.append(str(event["caption_note"]))
     return "\n\n".join(part for part in parts if part.strip())
+
+
+INLINE_MATH_RE = re.compile(r"\$[^$\n]*\$")
+
+
+def safe_explanation_excerpt(text: str, limit: int = 90) -> str:
+    """Return a short prose excerpt without cutting through inline math."""
+    text = INLINE_MATH_RE.sub(" ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > limit:
+        text = text[:limit].rstrip(" ,.;:，。；：") + "..."
+    return text or "this paragraph's local claim"
+
+
+def concise_explanation(para: dict, translation: str) -> str:
+    section = str(para.get("section") or "").strip()
+    source = str(para.get("text") or "")
+    first_sentence = re.split(r"[。！？；;]", translation.strip(), maxsplit=1)[0].strip()
+    first_sentence = safe_explanation_excerpt(first_sentence)
+    anchors = []
+    for pattern in (
+        r"\b(?:Hartmann|MHD|Kulikovskii|Shercliff|Hunt|Lehnert|Murgatroyd)\b",
+        r"\b(?:Equation|Figure)\s*[0-9][0-9A-Za-z.]*",
+        r"\b[MBQIN]\b",
+    ):
+        for match in re.findall(pattern, source):
+            value = match if isinstance(match, str) else " ".join(match)
+            if value and value not in anchors:
+                anchors.append(value)
+            if len(anchors) >= 4:
+                break
+        if len(anchors) >= 4:
+            break
+    anchor_text = "、".join(anchors[:4]) if anchors else "该段中的变量、边界条件和引用"
+    if section:
+        return f"在“{section}”部分，这段推进的要点是：{first_sentence}。阅读时重点核对 {anchor_text}，因为它们限定了该段结论适用的物理区域或数学条件。"
+    return f"这段推进的要点是：{first_sentence}。阅读时重点核对 {anchor_text}，因为它们限定了该段结论适用的物理区域或数学条件。"
 
 
 def build_guide(
@@ -416,6 +490,8 @@ def build_guide(
         original = build_original(events.get(pid, []), str(para["text"]))
         translation = translations.get(pid, {}).get("translation", "").strip()
         explanation = translations.get(pid, {}).get("explanation", "").strip()
+        if not explanation:
+            explanation = concise_explanation(para, translation)
         lines.extend([f'<a id="{pid}"></a>', "", f"**{pid}**", ""])
         lines.append(f"**原文：** {original}")
         lines.append("")

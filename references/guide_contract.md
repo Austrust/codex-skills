@@ -175,6 +175,7 @@ $$
 For displayed formulas:
 
 - Run `scripts/validate_formula_latex.py` before formula insertion and save `formula_latex_validation.json`.
+- If a formula's OCR LaTeX is structurally damaged but its source image is legible, use an audited `context/formula_latex_overrides.json` record and pass it via `--formula-overrides`. The override must include the formula asset/path, replacement LaTeX, reason, source image/provenance, and review date.
 - If MinerU provides LaTeX in `caption_or_label` or `content_list.text` and that formula passes `formula_latex_validation.json`, place that LaTeX in the `原文：` stream.
 - If a specific formula has no recognized LaTeX or fails validation, embed the original formula image from `asset_manifest.json` at the same source-order position and record the reason.
 - Keep the original formula image in `assets/` even when the reading guide uses LaTeX, so the formula can be audited.
