@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-03",
+  "generated_at": "2026-07-06",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -11,6 +11,15 @@
       "pinned_commit": "3ae0cd104dbe7310ff8631bc39b72e44af00e8f6",
       "submodule_path": "repos/research-folder-organizer",
       "source_path": "repos/research-folder-organizer/research-folder-organizer",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "neat-freak",
+      "repository": "https://github.com/Austrust/neat-freak.git",
+      "branch": "main",
+      "pinned_commit": "cc5a3342a0c80635be17d36090d795b4786445bf",
+      "submodule_path": "repos/neat-freak",
+      "source_path": "repos/neat-freak",
       "targets": ["codex", "agents"]
     },
     {

@@ -1,6 +1,7 @@
 # Local Skill Inventory
 
-This inventory was captured from the current machine on 2026-06-05.
+This inventory was captured from the current machine on 2026-06-05 and updated
+on 2026-07-06 for `neat-freak`.
 
 The collection submodules include only skills with confirmed personal GitHub
 repositories. The installed local skill folders below were not added as
@@ -15,8 +16,9 @@ from the current checkout search.
 - `research-report-index`
 - `zotero-literature-guide`
 - `research-readme-index`
+- `neat-freak`
 
-## Installed Under `C:\Users\A_Tas\.codex\skills`
+## Installed Under `$env:USERPROFILE\.codex\skills`
 
 - `caveman`
 - `diagnose`
@@ -30,6 +32,7 @@ from the current checkout search.
 - `improve-codebase-architecture`
 - `kb-retriever`
 - `migrate-to-shoehorn`
+- `neat-freak`
 - `nature-academic-search`
 - `nature-citation`
 - `nature-data`
@@ -58,7 +61,7 @@ from the current checkout search.
 - `write-a-skill`
 - `zoom-out`
 
-## Installed Under `C:\Users\A_Tas\.agents\skills`
+## Installed Under `$env:USERPROFILE\.agents\skills`
 
 - `graphify`
 

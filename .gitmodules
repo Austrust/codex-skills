@@ -22,3 +22,7 @@
 	path = repos/research-readme-index
 	url = https://github.com/Austrust/research-readme-index.git
 	branch = main
+[submodule "repos/neat-freak"]
+	path = repos/neat-freak
+	url = https://github.com/Austrust/neat-freak.git
+	branch = main

@@ -9,6 +9,7 @@ bootstrap point for new machines.
 | Skill | Repository | Source path |
 |---|---|---|
 | `research-folder-organizer` | `Austrust/codex-skill-research-folder-organizer` | `repos/research-folder-organizer/research-folder-organizer` |
+| `neat-freak` | `Austrust/neat-freak` | `repos/neat-freak` |
 | `planka-kanban` | `Austrust/planka-kanban` | `repos/planka-kanban` |
 | `scientific-data-report` | `Austrust/scientific-data-report` | `repos/scientific-data-report` |
 | `research-report-index` | `Austrust/research-report-index` | `repos/research-report-index` |
