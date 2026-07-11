@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-06",
+  "generated_at": "2026-07-11",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -8,7 +8,7 @@
       "name": "research-folder-organizer",
       "repository": "https://github.com/Austrust/codex-skill-research-folder-organizer.git",
       "branch": "main",
-      "pinned_commit": "3ae0cd104dbe7310ff8631bc39b72e44af00e8f6",
+      "pinned_commit": "570c53d558d49e4b4e66d266409d058e1e3eefec",
       "submodule_path": "repos/research-folder-organizer",
       "source_path": "repos/research-folder-organizer/research-folder-organizer",
       "targets": ["codex", "agents"]
@@ -35,7 +35,7 @@
       "name": "scientific-data-report",
       "repository": "https://github.com/Austrust/scientific-data-report.git",
       "branch": "main",
-      "pinned_commit": "38138c6382eaa964961454e026124466acc99e23",
+      "pinned_commit": "5656e65e7b36f663496c36b6ed8312b29f41b01e",
       "submodule_path": "repos/scientific-data-report",
       "source_path": "repos/scientific-data-report",
       "targets": ["codex", "agents"]
@@ -53,7 +53,7 @@
       "name": "research-readme-index",
       "repository": "https://github.com/Austrust/research-readme-index.git",
       "branch": "main",
-      "pinned_commit": "4edb9a252d93fc26afa132aaef7619567679705e",
+      "pinned_commit": "2f94cc16508764657aa427c67d5684bb9bc29494",
       "submodule_path": "repos/research-readme-index",
       "source_path": "repos/research-readme-index",
       "targets": ["codex", "agents"]
