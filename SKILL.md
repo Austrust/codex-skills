@@ -29,7 +29,6 @@ Default structure is compatible with `research-folder-organizer`:
 - Use `README.md` as the navigation file. Do not introduce `data_structure.md`.
 - Default to the current change set. Use `git status --short` or user-provided paths; scan the whole project only when the user explicitly asks for a full audit.
 - Prefer local patches over full rewrites. Preserve existing README tone, language, table shape, and section order.
-- Do not update graphify.
 - Do not create README files for cache folders, temporary folders, generated figure directories, `outputs/intermediate/`, or one-off script output directories.
 
 ## Reader Orientation
