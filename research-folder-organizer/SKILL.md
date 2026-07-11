@@ -16,9 +16,8 @@ Default stance: audit first, propose batches second, mutate only after explicit 
 ## Workflow
 
 1. **Ground in the project**
-   - Read local instructions first: `AGENTS.md`, `README*`, `项目Wiki.md`, `ProjectWiki.md`, `.gitignore`, `.graphifyignore`.
+   - Read local instructions first: `AGENTS.md`, `README*`, `项目Wiki.md`, `ProjectWiki.md`, and `.gitignore`.
    - Check whether the folder is a Git repo with `git status --short`.
-   - Do not update graphify as part of this skill. Treat any existing `graphify-out/` as protected archival output unless the user explicitly asks for separate graph maintenance.
 
 2. **Run a read-only inventory**
    - Use `scripts/inventory.py --root <project> --dry-run --format both`.
@@ -30,7 +29,7 @@ Default stance: audit first, propose batches second, mutate only after explicit 
    - `supporting_evidence`: validation packages, figures, tables, source reports, reproducibility notes.
    - `reproducible_output`: build output, generated figures, exported reports that can be regenerated.
    - `archive_candidate`: superseded drafts, old exploratory runs, stale copies, replaced exports.
-   - `protected_data`: raw data, large scientific stores, venvs, Git metadata, graph outputs, media captures.
+   - `protected_data`: raw data, large scientific stores, virtual environments, Git metadata, unknown generated-tool outputs, and media captures.
    - `cache_or_temp`: caches, temporary folders, build artifacts, editor state.
 
 4. **Plan task packages before moves**
@@ -48,7 +47,6 @@ Default stance: audit first, propose batches second, mutate only after explicit 
      80_presentations/    # PPT, web/video presentations, talk scripts
      90_archive/          # retired task packages and historical archives
      _organizer/          # organizer reports and execution records
-     graphify-out/        # existing graph outputs, protected and left untouched
      ```
 
    - Use stable task names: `T001_uiv_processing`, `T002_comsol_uiv_comparison`, `T003_deep_exchange_reachability`.
@@ -112,7 +110,7 @@ Default stance: audit first, propose batches second, mutate only after explicit 
 ## Safety Rules
 
 - Default to no deletion. Duplicate files are report-only unless the user explicitly approves removal in a later task.
-- Protect paths from project config first. If config is missing, conservatively protect `.git/`, `.venv/`, `venv/`, `env/`, `dataset*/`, `graphify-out/`, Zarr stores, scientific arrays, HDF5/NetCDF/MAT files, raw media, and build caches.
+- Protect paths from project config first. If config is missing, conservatively protect `.git/`, `.venv/`, `venv/`, `env/`, `dataset*/`, unknown generated-tool output directories, Zarr stores, scientific arrays, HDF5/NetCDF/MAT files, raw media, and build caches.
 - Do not move raw data or notebooks with unknown relative paths during the first pass.
 - Do not split a coherent task package by file type. If a script, table, figure, and report exist to answer the same research question, keep them together under that task.
 - Do not mix unrelated dirty worktree changes into organizer commits.
@@ -122,7 +120,7 @@ Default stance: audit first, propose batches second, mutate only after explicit 
 
 - Always record pre/post `git status --short` when inside a Git repo.
 - If committing is approved, stage only organizer-created or organizer-moved files for that batch.
-- Do not update, regenerate, or stage graphify outputs as part of this skill.
+- Do not update, regenerate, or stage unknown generated-tool outputs as part of this skill.
 
 ## Script
 

@@ -26,7 +26,6 @@ CONFIG_NAMES = (
     "ProjectWiki.md",
     "项目Wiki.md",
     ".gitignore",
-    ".graphifyignore",
 )
 
 PROTECTED_DIR_NAMES = {
@@ -36,7 +35,6 @@ PROTECTED_DIR_NAMES = {
     "env",
     ".conda",
     "conda-meta",
-    "graphify-out",
     "__pycache__",
     ".pytest_cache",
     ".mypy_cache",
@@ -177,12 +175,11 @@ def load_project_config(root: Path) -> dict:
             files[path.name] = safe_read(path)
 
     config_text = "\n".join(files.values()).lower()
-    graphify_present = (root / "graphify-out").exists() or "graphify" in config_text
     venv_required = ".venv" in config_text and "python" in config_text
     has_git = (root / ".git").exists()
 
     ignore_patterns = []
-    for name in (".gitignore", ".graphifyignore"):
+    for name in (".gitignore",):
         for line in files.get(name, "").splitlines():
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
@@ -191,8 +188,6 @@ def load_project_config(root: Path) -> dict:
     return {
         "files_found": sorted(files),
         "has_git": has_git,
-        "graphify_present": graphify_present,
-        "graphify_required": False,
         "project_venv_required": venv_required,
         "ignore_patterns": ignore_patterns,
         "language": detect_language(root, files),
@@ -450,8 +445,6 @@ def write_report(path: Path, data: dict) -> None:
     lines.append(f"- Project language: `{config['language']}`")
     lines.append(f"- Suggested organizer wiki: `{config['organizer_wiki_name']}`")
     lines.append(f"- Config files found: {', '.join(config['files_found']) or 'none'}")
-    lines.append(f"- Graphify present or mentioned: `{config.get('graphify_present', False)}`")
-    lines.append("- Graphify maintenance: disabled by this skill")
     lines.append(f"- Project venv required: `{config['project_venv_required']}`")
     lines.append(f"- Git repo: `{git['is_repo']}`")
     if git["status_short"]:
@@ -580,7 +573,7 @@ def write_batches(path: Path, data: dict) -> None:
             "",
             "- Stage only organizer-created files or approved archive moves.",
             "- Do not include unrelated dirty worktree changes.",
-            "- Do not update or stage graphify outputs as part of this organizer workflow.",
+            "- Do not update or stage unknown generated-tool outputs as part of this organizer workflow.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

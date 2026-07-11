@@ -2,14 +2,14 @@
 
 This repository publishes the `research-folder-organizer` Codex skill.
 
-The skill audits research project folders and proposes safe, reviewable organization plans around one-task-one-package research workflows. It is designed for scientific project folders where raw data, scripts, figures, reports, manuscript material, archives, and graph indexes need to remain traceable.
+The skill audits research project folders and proposes safe, reviewable organization plans around one-task-one-package research workflows. It is designed for scientific project folders where raw data, scripts, figures, reports, manuscript material, and archives need to remain traceable.
 
 ## What It Does
 
 - Audits a research folder before changing anything.
 - Classifies files by evidence lifecycle.
 - Proposes batch plans for organization instead of silently moving files.
-- Protects raw data, virtual environments, Git metadata, graphify outputs, scientific arrays, and media by default.
+- Protects raw data, virtual environments, Git metadata, scientific arrays, and media by default.
 - Creates durable human and agent entrypoints such as organizer reports and task registries when approved.
 
 ## Install
