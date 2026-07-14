@@ -57,19 +57,57 @@ function Get-TargetRoots {
     return $Roots
 }
 
-$RequestedSkills = @{}
-foreach ($Name in $Skill) {
-    $RequestedSkills[$Name] = $true
+$EntriesByName = @{}
+foreach ($Entry in @($Manifest.skills)) {
+    if (-not $Entry.name) {
+        throw "Every manifest skill requires a name."
+    }
+    if ($EntriesByName.ContainsKey($Entry.name)) {
+        throw "Duplicate skill in manifest: $($Entry.name)"
+    }
+    $EntriesByName[$Entry.name] = $Entry
 }
 
-$Entries = @($Manifest.skills)
-if ($Skill.Count -gt 0) {
-    $Entries = @($Manifest.skills | Where-Object { $RequestedSkills.ContainsKey($_.name) })
+function Add-SkillWithDependencies {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][hashtable]$Visiting,
+        [Parameter(Mandatory = $true)][hashtable]$Added,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.ArrayList]$Output
+    )
+
+    if (-not $EntriesByName.ContainsKey($Name)) {
+        throw "Skill or dependency not found in manifest: $Name"
+    }
+    if ($Added.ContainsKey($Name)) {
+        return
+    }
+    if ($Visiting.ContainsKey($Name)) {
+        $Cycle = @($Visiting.Keys) + $Name
+        throw "Skill dependency cycle detected: $($Cycle -join ' -> ')"
+    }
+
+    $Visiting[$Name] = $true
+    $Entry = $EntriesByName[$Name]
+    $Dependencies = if ($null -eq $Entry.dependencies) { @() } else { @($Entry.dependencies) }
+    foreach ($Dependency in $Dependencies) {
+        if (-not ($Dependency -is [string]) -or [string]::IsNullOrWhiteSpace($Dependency)) {
+            throw "Skill $Name has an invalid dependency entry."
+        }
+        Add-SkillWithDependencies -Name $Dependency -Visiting $Visiting -Added $Added -Output $Output
+    }
+    [void]$Visiting.Remove($Name)
+    $Added[$Name] = $true
+    [void]$Output.Add($Entry)
 }
 
-if ($Entries.Count -eq 0) {
-    throw "No matching skills found in manifest."
+$RequestedNames = if ($Skill.Count -gt 0) { @($Skill) } else { @($Manifest.skills | ForEach-Object { $_.name }) }
+$ResolvedEntries = New-Object System.Collections.ArrayList
+$AddedSkills = @{}
+foreach ($Name in $RequestedNames) {
+    Add-SkillWithDependencies -Name $Name -Visiting @{} -Added $AddedSkills -Output $ResolvedEntries
 }
+$Entries = @($ResolvedEntries)
 
 $TargetRoots = Get-TargetRoots -RequestedTarget $Target
 

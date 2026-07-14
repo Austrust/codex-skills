@@ -26,3 +26,7 @@
 	path = repos/neat-freak
 	url = https://github.com/Austrust/neat-freak.git
 	branch = main
+[submodule "repos/to-kanban"]
+	path = repos/to-kanban
+	url = https://github.com/Austrust/to-kanban.git
+	branch = main

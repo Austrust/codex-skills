@@ -11,6 +11,7 @@ bootstrap point for new machines.
 | `research-folder-organizer` | `Austrust/codex-skill-research-folder-organizer` | `repos/research-folder-organizer/research-folder-organizer` |
 | `neat-freak` | `Austrust/neat-freak` | `repos/neat-freak` |
 | `planka-kanban` | `Austrust/planka-kanban` | `repos/planka-kanban` |
+| `to-kanban` | `Austrust/to-kanban` | `repos/to-kanban` |
 | `scientific-data-report` | `Austrust/scientific-data-report` | `repos/scientific-data-report` |
 | `research-report-index` | `Austrust/research-report-index` | `repos/research-report-index` |
 | `research-readme-index` | `Austrust/research-readme-index` | `repos/research-readme-index` |
@@ -44,6 +45,13 @@ when you intentionally want to replace an installed skill folder:
 
 ```powershell
 .\scripts\install.ps1 -Target codex -Force
+```
+
+When selecting individual skills, declared dependencies are installed first.
+For example, installing `to-kanban` also installs `planka-kanban`:
+
+```powershell
+.\scripts\install.ps1 -Target codex -Skill to-kanban
 ```
 
 ## Update Submodules
