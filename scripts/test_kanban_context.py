@@ -51,7 +51,14 @@ def snapshot_with_two_boards():
             "board-patent",
             "专利工作",
             [{"id": "patent-todo", "name": "待办"}, {"id": "patent-done", "name": "已完成"}],
-            [{"id": "p1", "name": "完善超声PIV专利权利要求", "description": "C:/work/patent", "listId": "patent-todo"}],
+            [
+                {
+                    "id": "p1",
+                    "name": "完善超声PIV专利权利要求",
+                    "description": "C:/work/patent; owner@example.com; Authorization: Bearer secret-value",
+                    "listId": "patent-todo",
+                }
+            ],
         ),
         "board-paper": live_board(
             "board-paper",
@@ -78,6 +85,9 @@ class KanbanContextTests(unittest.TestCase):
         self.assertEqual(len(snapshot["boards"]), 2)
         self.assertNotIn("users", snapshot["boards"][0]["included"])
         self.assertEqual(snapshot["projects"], [{"id": "project-1", "name": "Research"}])
+        serialized = str(snapshot)
+        self.assertNotIn("owner@example.com", serialized)
+        self.assertNotIn("secret-value", serialized)
 
     def test_semantic_board_content_selects_patent_todo(self):
         result = route_task(

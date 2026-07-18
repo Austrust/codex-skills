@@ -31,6 +31,7 @@ SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
     re.compile(r"\b(?:PLANKA_API_KEY|PLANKA_PASSWORD|Authorization)\s*[:=]", re.IGNORECASE),
 )
+EMAIL_PATTERN = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 PROJECT_FIELDS = ("id", "name")
 BOARD_FIELDS = ("id", "projectId", "name", "position")
 INCLUDED_FIELDS = {
@@ -111,6 +112,8 @@ def atomic_write_json(path: Path, payload: Any) -> None:
 def reject_secret(text: str, label: str) -> None:
     if any(pattern.search(text) for pattern in SECRET_PATTERNS):
         raise ContextError(f"{label} appears to contain a credential or authorization secret")
+    if EMAIL_PATTERN.search(text):
+        raise ContextError(f"{label} appears to contain an email address; omit it from shared routing memory")
 
 
 def require_string(value: Any, label: str) -> str:
@@ -149,7 +152,17 @@ def load_memory(path: Path) -> dict[str, Any]:
 def clean_fields(value: Any, fields: tuple[str, ...]) -> dict[str, Any]:
     if not isinstance(value, dict):
         return {}
-    return {key: value[key] for key in fields if key in value}
+    cleaned = {}
+    for key in fields:
+        if key not in value:
+            continue
+        item = value[key]
+        if isinstance(item, str):
+            for pattern in SECRET_PATTERNS:
+                item = pattern.sub("<redacted>", item)
+            item = EMAIL_PATTERN.sub("<redacted-email>", item)
+        cleaned[key] = item
+    return cleaned
 
 
 def build_offline_snapshot(
