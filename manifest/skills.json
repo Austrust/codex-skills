@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-14",
+  "generated_at": "2026-07-18",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -35,7 +35,7 @@
       "name": "to-kanban",
       "repository": "https://github.com/Austrust/to-kanban.git",
       "branch": "main",
-      "pinned_commit": "3e455d24e828152db1a7fbc6b37876c7f391ef85",
+      "pinned_commit": "69988fbd8a53277439e629318093013e2e09b1ec",
       "submodule_path": "repos/to-kanban",
       "source_path": "repos/to-kanban",
       "targets": ["codex", "agents"],
