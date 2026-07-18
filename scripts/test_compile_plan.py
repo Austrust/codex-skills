@@ -150,10 +150,10 @@ class CompilePlanTests(unittest.TestCase):
     def test_missing_state_and_invalid_status_are_rejected(self):
         bad_config = {**CONFIG, "lists": {key: value for key, value in CONFIG["lists"].items() if key != "review"}}
         summary = {
-            "tasks": [task()],
+            "tasks": [task(status="review")],
             "primaryNextTask": {"title": "Next", "relationship": "new", "steps": []},
         }
-        with self.assertRaisesRegex(ValidationError, "exactly the five states"):
+        with self.assertRaisesRegex(ValidationError, "requested task states"):
             compile_plan(bad_config, summary, board())
         summary["tasks"][0]["status"] = "unknown"
         with self.assertRaisesRegex(ValidationError, "must be one of"):
@@ -166,6 +166,18 @@ class CompilePlanTests(unittest.TestCase):
         }
         snapshot = board([{"id": "card-1", "name": "Implement feature"}])
         self.assertEqual(compile_plan(CONFIG, summary, snapshot), compile_plan(CONFIG, summary, snapshot))
+
+    def test_quick_capture_does_not_require_a_primary_next_task_or_five_lists(self):
+        config = {"boardId": "board-1", "lists": {"todo": "待办"}, "taskListName": "下一步"}
+        summary = {"tasks": [task("Capture this", "todo")], "primaryNextTask": None}
+        snapshot = {
+            "item": {"id": "board-1", "name": "Work"},
+            "included": {"lists": [{"id": "list-1", "name": "待办"}], "cards": []},
+        }
+        result = compile_plan(config, summary, snapshot)
+        publishes = [operation for operation in result["operations"] if operation["action"] == "publish-card"]
+        self.assertEqual([operation["title"] for operation in publishes], ["Capture this"])
+        self.assertIsNone(result["metadata"]["primaryNextTask"])
 
     def test_secret_like_content_is_rejected(self):
         summary = {

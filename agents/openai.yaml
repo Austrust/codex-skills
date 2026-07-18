@@ -1,7 +1,7 @@
 interface:
   display_name: "To Kanban"
-  short_description: "Summarize a conversation and sync its next task to Planka."
-  default_prompt: "Use $to-kanban to summarize this conversation, preview the Planka updates, and propose the next task."
+  short_description: "Route any conversation into the right Planka task."
+  default_prompt: "Use $to-kanban to turn this conversation into a Planka task and infer the destination automatically."
 
 policy:
   allow_implicit_invocation: false

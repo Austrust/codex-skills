@@ -41,7 +41,12 @@ class ValidationError(ValueError):
 
 def default_config_path() -> Path:
     codex_home = os.environ.get("CODEX_HOME")
-    return Path(codex_home).expanduser() / "to-kanban.json" if codex_home else Path.home() / ".codex" / "to-kanban.json"
+    root = Path(codex_home).expanduser() if codex_home else Path.home() / ".codex"
+    return root / "to-kanban" / "current-route.json"
+
+
+def default_board_path() -> Path:
+    return default_config_path().with_name("current-board.json")
 
 
 def load_json(path: Path) -> Any:
@@ -92,21 +97,24 @@ def reject_secret(text: str, label: str) -> None:
         raise ValidationError(f"{label} appears to contain a credential or authorization secret")
 
 
-def validate_config(raw: Any) -> dict[str, Any]:
+def validate_config(raw: Any, required_statuses: set[str] | None = None) -> dict[str, Any]:
     config = require_object(raw, "config")
     reject_unknown_keys(config, CONFIG_KEYS, "config")
     board_id = require_string(config.get("boardId"), "config.boardId")
     lists = require_object(config.get("lists"), "config.lists")
-    missing = [status for status in STATUSES if status not in lists]
     extra = sorted(set(lists) - set(STATUSES))
-    if missing or extra:
+    required = required_statuses or set()
+    missing = sorted(status for status in required if status not in lists)
+    if missing or extra or not lists:
         details = []
         if missing:
             details.append(f"missing: {', '.join(missing)}")
         if extra:
             details.append(f"unsupported: {', '.join(extra)}")
-        raise ValidationError(f"config.lists must define exactly the five states ({'; '.join(details)})")
-    normalized_lists = {status: require_string(lists[status], f"config.lists.{status}") for status in STATUSES}
+        if not lists:
+            details.append("no list mappings")
+        raise ValidationError(f"config.lists does not satisfy the requested task states ({'; '.join(details)})")
+    normalized_lists = {status: require_string(name, f"config.lists.{status}") for status, name in lists.items()}
     duplicate_names = sorted({name for name in normalized_lists.values() if list(normalized_lists.values()).count(name) > 1})
     if duplicate_names:
         raise ValidationError(f"config.lists values must be unique: {', '.join(duplicate_names)}")
@@ -220,7 +228,16 @@ def validate_summary(raw: Any) -> dict[str, Any]:
             }
         )
 
-    next_task = require_object(summary.get("primaryNextTask"), "summary.primaryNextTask")
+    raw_next_task = summary.get("primaryNextTask")
+    if raw_next_task is None:
+        normalized_next = None
+        return {
+            "tasks": tasks,
+            "primaryNextTask": normalized_next,
+            "workspaceMarkers": string_list(summary.get("workspaceMarkers"), "summary.workspaceMarkers"),
+        }
+
+    next_task = require_object(raw_next_task, "summary.primaryNextTask")
     reject_unknown_keys(next_task, NEXT_KEYS, "summary.primaryNextTask")
     relationship = require_string(next_task.get("relationship"), "summary.primaryNextTask.relationship")
     if relationship not in {"continuation", "new"}:
@@ -258,7 +275,7 @@ def bullet_section(label: str, values: list[str]) -> list[str]:
     return [f"{label}：", *[f"- {value}" for value in values]]
 
 
-def task_comment(task: dict[str, Any], update_id: str, next_task: dict[str, Any]) -> str:
+def task_comment(task: dict[str, Any], update_id: str, next_task: dict[str, Any] | None) -> str:
     lines = [
         f"[to-kanban:{update_id}]",
         f"状态：{STATUS_LABELS[task['status']]}",
@@ -267,7 +284,7 @@ def task_comment(task: dict[str, Any], update_id: str, next_task: dict[str, Any]
     lines.extend(bullet_section("已完成", task["completed"]))
     lines.extend(bullet_section("产物/证据", task["artifacts"]))
     lines.extend(bullet_section("未完成/阻塞", task["openItems"]))
-    if next_task["relationship"] == "continuation" and next_task["parentTaskTitle"] == task["title"]:
+    if next_task and next_task["relationship"] == "continuation" and next_task["parentTaskTitle"] == task["title"]:
         lines.extend(["下一步：", f"- {next_task['title']}"])
     return "\n".join(lines)
 
@@ -283,8 +300,11 @@ def card_reference(config: dict[str, Any], task: dict[str, Any]) -> dict[str, An
 
 
 def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None) -> dict[str, Any]:
-    config = validate_config(config_raw)
     summary = validate_summary(summary_raw)
+    required_statuses = {task["status"] for task in summary["tasks"]}
+    if summary["primaryNextTask"] and summary["primaryNextTask"]["relationship"] == "new":
+        required_statuses.add("todo")
+    config = validate_config(config_raw, required_statuses)
     board = validate_board(config, board_raw) if board_raw is not None else None
     resolved = deepcopy(summary)
     match_preview = []
@@ -315,7 +335,11 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
 
     for task in resolved["tasks"]:
         target_list = config["lists"][task["status"]]
-        continuation = next_task["relationship"] == "continuation" and next_task["parentTaskTitle"] == task["title"]
+        continuation = bool(
+            next_task
+            and next_task["relationship"] == "continuation"
+            and next_task["parentTaskTitle"] == task["title"]
+        )
         comment = task_comment(task, update_id, next_task)
 
         if task.get("cardId"):
@@ -369,7 +393,7 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 }
             )
 
-    if next_task["relationship"] == "new":
+    if next_task and next_task["relationship"] == "new":
         next_publish: dict[str, Any] = {
             "action": "publish-card",
             "boardId": config["boardId"],
@@ -416,8 +440,16 @@ def write_json(path: Path, payload: Any) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path, help="UTF-8 conversation summary JSON")
-    parser.add_argument("--config", type=Path, help="Config JSON; defaults to $CODEX_HOME/to-kanban.json")
-    parser.add_argument("--board", type=Path, help="Optional planka_cli.py board JSON snapshot for safe matching")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help="Route config JSON; defaults to $CODEX_HOME/to-kanban/current-route.json",
+    )
+    parser.add_argument(
+        "--board",
+        type=Path,
+        help="Board JSON; defaults to $CODEX_HOME/to-kanban/current-board.json when present",
+    )
     parser.add_argument("--output", type=Path, help="Write the apply-plan JSON here; otherwise print to stdout")
     return parser
 
@@ -427,7 +459,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = load_json(args.config or default_config_path())
         summary = load_json(args.input)
-        board = load_json(args.board) if args.board else None
+        board_path = args.board or default_board_path()
+        board = load_json(board_path) if board_path.exists() else None
         plan = compile_plan(config, summary, board)
         if args.output:
             write_json(args.output, plan)
