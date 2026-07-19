@@ -24,9 +24,31 @@ STATUS_LABELS = {
     "done": "已完成",
 }
 SUMMARY_KEYS = {"tasks", "primaryNextTask", "workspaceMarkers"}
-CONFIG_KEYS = {"boardId", "lists", "taskListName"}
-TASK_KEYS = {"title", "status", "summary", "completed", "artifacts", "openItems", "cardId"}
-NEXT_KEYS = {"title", "relationship", "parentTaskTitle", "summary", "steps", "dueDate"}
+CONFIG_KEYS = {"boardId", "lists", "taskListName", "acceptanceListName"}
+TASK_KEYS = {
+    "title",
+    "status",
+    "summary",
+    "deliverable",
+    "acceptanceCriteria",
+    "dependencies",
+    "steps",
+    "completed",
+    "artifacts",
+    "openItems",
+    "cardId",
+}
+NEXT_KEYS = {
+    "title",
+    "relationship",
+    "parentTaskTitle",
+    "summary",
+    "deliverable",
+    "acceptanceCriteria",
+    "dependencies",
+    "steps",
+    "dueDate",
+}
 SECRET_PATTERNS = (
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE),
     re.compile(r"\b(?:ghp|github_pat)_[A-Za-z0-9_]{12,}\b"),
@@ -86,6 +108,13 @@ def string_list(value: Any, label: str) -> list[str]:
     return [require_string(item, f"{label}[{index}]") for index, item in enumerate(value)]
 
 
+def unique_string_list(value: Any, label: str) -> list[str]:
+    values = string_list(value, label)
+    if len(values) != len(set(values)):
+        raise ValidationError(f"{label} must not contain duplicate entries")
+    return values
+
+
 def reject_unknown_keys(value: dict[str, Any], allowed: set[str], label: str) -> None:
     unknown = sorted(set(value) - allowed)
     if unknown:
@@ -118,8 +147,18 @@ def validate_config(raw: Any, required_statuses: set[str] | None = None) -> dict
     duplicate_names = sorted({name for name in normalized_lists.values() if list(normalized_lists.values()).count(name) > 1})
     if duplicate_names:
         raise ValidationError(f"config.lists values must be unique: {', '.join(duplicate_names)}")
-    task_list_name = optional_string(config.get("taskListName"), "config.taskListName") or "下一步"
-    return {"boardId": board_id, "lists": normalized_lists, "taskListName": task_list_name}
+    task_list_name = optional_string(config.get("taskListName"), "config.taskListName") or "执行步骤"
+    acceptance_list_name = (
+        optional_string(config.get("acceptanceListName"), "config.acceptanceListName") or "验收条件"
+    )
+    if task_list_name == acceptance_list_name:
+        raise ValidationError("config.taskListName and config.acceptanceListName must be different")
+    return {
+        "boardId": board_id,
+        "lists": normalized_lists,
+        "taskListName": task_list_name,
+        "acceptanceListName": acceptance_list_name,
+    }
 
 
 def normalize_title(value: str) -> str:
@@ -221,6 +260,16 @@ def validate_summary(raw: Any) -> dict[str, Any]:
                 "title": title,
                 "status": status,
                 "summary": require_string(task.get("summary"), f"summary.tasks[{index}].summary"),
+                "deliverable": optional_string(
+                    task.get("deliverable"), f"summary.tasks[{index}].deliverable"
+                ),
+                "acceptanceCriteria": unique_string_list(
+                    task.get("acceptanceCriteria"), f"summary.tasks[{index}].acceptanceCriteria"
+                ),
+                "dependencies": unique_string_list(
+                    task.get("dependencies"), f"summary.tasks[{index}].dependencies"
+                ),
+                "steps": unique_string_list(task.get("steps"), f"summary.tasks[{index}].steps"),
                 "completed": string_list(task.get("completed"), f"summary.tasks[{index}].completed"),
                 "artifacts": string_list(task.get("artifacts"), f"summary.tasks[{index}].artifacts"),
                 "openItems": string_list(task.get("openItems"), f"summary.tasks[{index}].openItems"),
@@ -253,7 +302,14 @@ def validate_summary(raw: Any) -> dict[str, Any]:
         "relationship": relationship,
         "parentTaskTitle": parent_title,
         "summary": optional_string(next_task.get("summary"), "summary.primaryNextTask.summary"),
-        "steps": string_list(next_task.get("steps"), "summary.primaryNextTask.steps"),
+        "deliverable": optional_string(next_task.get("deliverable"), "summary.primaryNextTask.deliverable"),
+        "acceptanceCriteria": unique_string_list(
+            next_task.get("acceptanceCriteria"), "summary.primaryNextTask.acceptanceCriteria"
+        ),
+        "dependencies": unique_string_list(
+            next_task.get("dependencies"), "summary.primaryNextTask.dependencies"
+        ),
+        "steps": unique_string_list(next_task.get("steps"), "summary.primaryNextTask.steps"),
         "dueDate": optional_string(next_task.get("dueDate"), "summary.primaryNextTask.dueDate"),
     }
     return {
@@ -275,12 +331,37 @@ def bullet_section(label: str, values: list[str]) -> list[str]:
     return [f"{label}：", *[f"- {value}" for value in values]]
 
 
+def validate_actionable_card(item: dict[str, Any], label: str) -> None:
+    if not item.get("deliverable"):
+        raise ValidationError(f"{label}.deliverable is required for a new card")
+    if not item.get("acceptanceCriteria"):
+        raise ValidationError(f"{label}.acceptanceCriteria requires at least one pass/fail condition")
+
+
+def work_item_description(item: dict[str, Any]) -> str:
+    dependencies = item.get("dependencies") or []
+    lines = [
+        f"目标：{item.get('summary') or '未提供'}",
+        "",
+        f"交付物：{item['deliverable']}",
+        "",
+        "前置条件：",
+    ]
+    lines.extend([f"- {value}" for value in dependencies] or ["- 无"])
+    return "\n".join(lines)
+
+
 def task_comment(task: dict[str, Any], update_id: str, next_task: dict[str, Any] | None) -> str:
     lines = [
         f"[to-kanban:{update_id}]",
         f"状态：{STATUS_LABELS[task['status']]}",
         f"摘要：{task['summary']}",
     ]
+    if task.get("deliverable"):
+        lines.append(f"交付物：{task['deliverable']}")
+    lines.extend(bullet_section("验收条件", task.get("acceptanceCriteria") or []))
+    lines.extend(bullet_section("前置条件", task.get("dependencies") or ["无"]))
+    lines.extend(bullet_section("执行步骤", task.get("steps") or []))
     lines.extend(bullet_section("已完成", task["completed"]))
     lines.extend(bullet_section("产物/证据", task["artifacts"]))
     lines.extend(bullet_section("未完成/阻塞", task["openItems"]))
@@ -320,6 +401,10 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
         match_preview.append(
             {
                 "title": task["title"],
+                "goal": task["summary"],
+                "deliverable": task.get("deliverable"),
+                "acceptanceCriteria": task.get("acceptanceCriteria") or [],
+                "dependencies": task.get("dependencies") or [],
                 "cardId": task.get("cardId"),
                 "cardTitle": matched_card_title,
                 "matchedBy": matched_by,
@@ -328,6 +413,12 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 "status": task["status"],
             }
         )
+
+    for index, task in enumerate(resolved["tasks"]):
+        if task.get("cardId") is None:
+            validate_actionable_card(task, f"summary.tasks[{index}]")
+    if resolved["primaryNextTask"] and resolved["primaryNextTask"]["relationship"] == "new":
+        validate_actionable_card(resolved["primaryNextTask"], "summary.primaryNextTask")
 
     update_id = stable_update_id(config, resolved)
     operations: list[dict[str, Any]] = []
@@ -373,25 +464,49 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 "boardId": config["boardId"],
                 "list": target_list,
                 "title": task["title"],
+                "description": work_item_description(task),
                 "type": "project",
+                "taskList": config["acceptanceListName"],
+                "tasks": task["acceptanceCriteria"],
                 "moveExistingToTargetList": True,
             }
+            operations.append(publish_operation)
+            execution_steps = list(task.get("steps") or [])
             if continuation:
-                publish_operation.update(
+                execution_steps.append(next_task["title"])
+            if execution_steps:
+                operations.append(
                     {
+                        "action": "publish-card",
+                        "boardId": config["boardId"],
+                        "list": target_list,
+                        "title": task["title"],
+                        "type": "project",
                         "taskList": config["taskListName"],
-                        "tasks": [next_task["title"]],
+                        "tasks": execution_steps,
+                        "moveExistingToTargetList": True,
                     }
                 )
-            operations.append(publish_operation)
-            operations.append(
-                {
-                    "action": "comment",
-                    **card_reference(config, task),
-                    "text": comment,
-                    "commentMode": "append-once",
-                }
-            )
+            if task["status"] == "done":
+                operations.append(
+                    {
+                        "action": "complete-card",
+                        **card_reference(config, task),
+                        "moveToList": target_list,
+                        "completeTasks": "all",
+                        "comment": comment,
+                        "commentMode": "append-once",
+                    }
+                )
+            else:
+                operations.append(
+                    {
+                        "action": "comment",
+                        **card_reference(config, task),
+                        "text": comment,
+                        "commentMode": "append-once",
+                    }
+                )
 
     if next_task and next_task["relationship"] == "new":
         next_publish: dict[str, Any] = {
@@ -399,16 +514,28 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
             "boardId": config["boardId"],
             "list": config["lists"]["todo"],
             "title": next_task["title"],
+            "description": work_item_description(next_task),
             "type": "project",
-            "taskList": config["taskListName"],
-            "tasks": next_task["steps"],
+            "taskList": config["acceptanceListName"],
+            "tasks": next_task["acceptanceCriteria"],
             "moveExistingToTargetList": True,
         }
-        if next_task["summary"]:
-            next_publish["description"] = next_task["summary"]
         if next_task["dueDate"]:
             next_publish["dueDate"] = next_task["dueDate"]
         operations.append(next_publish)
+        if next_task["steps"]:
+            operations.append(
+                {
+                    "action": "publish-card",
+                    "boardId": config["boardId"],
+                    "list": config["lists"]["todo"],
+                    "title": next_task["title"],
+                    "type": "project",
+                    "taskList": config["taskListName"],
+                    "tasks": next_task["steps"],
+                    "moveExistingToTargetList": True,
+                }
+            )
         operations.append(
             {
                 "action": "comment",
@@ -422,7 +549,7 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
 
     return {
         "metadata": {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "updateId": update_id,
             "boardId": config["boardId"],
             "taskMatches": match_preview,

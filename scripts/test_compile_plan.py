@@ -18,6 +18,7 @@ CONFIG = {
         "done": "已完成",
     },
     "taskListName": "下一步",
+    "acceptanceListName": "验收条件",
 }
 
 
@@ -36,6 +37,10 @@ def task(title="Implement feature", status="done", card_id=None):
         "title": title,
         "status": status,
         "summary": f"Summary for {title}",
+        "deliverable": f"Deliverable for {title}",
+        "acceptanceCriteria": [f"{title} is reviewable"],
+        "dependencies": [],
+        "steps": [],
         "completed": ["Implemented and tested"],
         "artifacts": [f"C:/work/{title}.md"],
         "openItems": [],
@@ -45,19 +50,29 @@ def task(title="Implement feature", status="done", card_id=None):
     return value
 
 
+def new_next(title="Complete next output", steps=None):
+    return {
+        "title": title,
+        "relationship": "new",
+        "summary": f"Produce the reviewable result for {title}.",
+        "deliverable": f"Deliverable for {title}",
+        "acceptanceCriteria": [f"{title} passes review"],
+        "dependencies": [],
+        "steps": steps or [],
+    }
+
+
 class CompilePlanTests(unittest.TestCase):
     def test_done_existing_card_and_new_next_card(self):
         summary = {
             "tasks": [task(card_id="card-1")],
-            "primaryNextTask": {
-                "title": "Review feature",
-                "relationship": "new",
-                "summary": "Review the implementation.",
-                "steps": ["Inspect output", "Record feedback"],
-            },
+            "primaryNextTask": new_next("Review feature", ["Inspect output", "Record feedback"]),
         }
         result = compile_plan(CONFIG, summary, board([{"id": "card-1", "name": "Implement feature"}]))
-        self.assertEqual([op["action"] for op in result["operations"]], ["complete-card", "publish-card", "comment"])
+        self.assertEqual(
+            [op["action"] for op in result["operations"]],
+            ["complete-card", "publish-card", "publish-card", "comment"],
+        )
         self.assertEqual(result["operations"][0]["completeTasks"], "all")
         self.assertEqual(result["operations"][0]["moveToList"], "已完成")
         self.assertEqual(result["operations"][1]["title"], "Review feature")
@@ -96,11 +111,7 @@ class CompilePlanTests(unittest.TestCase):
                 task("Blocked task", "blocked", "card-1"),
                 task("Review task", "review", "card-2"),
             ],
-            "primaryNextTask": {
-                "title": "Request missing input",
-                "relationship": "new",
-                "steps": ["Contact owner"],
-            },
+            "primaryNextTask": new_next("Request missing input", ["Contact owner"]),
         }
         cards = [{"id": "card-1", "name": "Blocked task"}, {"id": "card-2", "name": "Review task"}]
         result = compile_plan(CONFIG, summary, board(cards))
@@ -110,12 +121,16 @@ class CompilePlanTests(unittest.TestCase):
     def test_multiple_new_tasks_create_separate_cards_and_one_next_card(self):
         summary = {
             "tasks": [task("Task A", "done"), task("Task B", "review")],
-            "primaryNextTask": {"title": "Task C", "relationship": "new", "steps": []},
+            "primaryNextTask": new_next("Complete Task C output"),
         }
         result = compile_plan(CONFIG, summary, board())
         publishes = [op for op in result["operations"] if op["action"] == "publish-card"]
-        self.assertEqual([op["title"] for op in publishes], ["Task A", "Task B", "Task C"])
-        self.assertEqual(sum(op["title"] == "Task C" for op in publishes), 1)
+        self.assertEqual([op["title"] for op in publishes], ["Task A", "Task B", "Complete Task C output"])
+        self.assertEqual(sum(op["title"] == "Complete Task C output" for op in publishes), 1)
+        completed_new = [
+            op for op in result["operations"] if op["action"] == "complete-card" and op.get("title") == "Task A"
+        ]
+        self.assertEqual(completed_new[0]["completeTasks"], "all")
 
     def test_normalized_match_requires_workspace_marker(self):
         summary = {
@@ -151,7 +166,7 @@ class CompilePlanTests(unittest.TestCase):
         bad_config = {**CONFIG, "lists": {key: value for key, value in CONFIG["lists"].items() if key != "review"}}
         summary = {
             "tasks": [task(status="review")],
-            "primaryNextTask": {"title": "Next", "relationship": "new", "steps": []},
+            "primaryNextTask": new_next(),
         }
         with self.assertRaisesRegex(ValidationError, "requested task states"):
             compile_plan(bad_config, summary, board())
@@ -162,7 +177,7 @@ class CompilePlanTests(unittest.TestCase):
     def test_same_input_is_idempotent(self):
         summary = {
             "tasks": [task(card_id="card-1")],
-            "primaryNextTask": {"title": "Next", "relationship": "new", "steps": []},
+            "primaryNextTask": new_next(),
         }
         snapshot = board([{"id": "card-1", "name": "Implement feature"}])
         self.assertEqual(compile_plan(CONFIG, summary, snapshot), compile_plan(CONFIG, summary, snapshot))
@@ -177,12 +192,34 @@ class CompilePlanTests(unittest.TestCase):
         result = compile_plan(config, summary, snapshot)
         publishes = [operation for operation in result["operations"] if operation["action"] == "publish-card"]
         self.assertEqual([operation["title"] for operation in publishes], ["Capture this"])
+        self.assertEqual(
+            publishes[0]["description"],
+            "目标：Summary for Capture this\n\n交付物：Deliverable for Capture this\n\n前置条件：\n- 无",
+        )
+        self.assertEqual(publishes[0]["taskList"], "验收条件")
+        self.assertEqual(publishes[0]["tasks"], ["Capture this is reviewable"])
         self.assertIsNone(result["metadata"]["primaryNextTask"])
+
+    def test_new_card_without_deliverable_or_acceptance_is_rejected(self):
+        value = task("Write report", "todo")
+        value["deliverable"] = None
+        value["acceptanceCriteria"] = []
+        summary = {"tasks": [value], "primaryNextTask": None}
+        with self.assertRaisesRegex(ValidationError, "deliverable is required"):
+            compile_plan(CONFIG, summary, board())
+
+    def test_mechanical_steps_use_a_separate_execution_list(self):
+        value = task("Publish drawing", "todo")
+        value["steps"] = ["Export PDF", "Attach source file"]
+        result = compile_plan(CONFIG, {"tasks": [value], "primaryNextTask": None}, board())
+        publishes = [operation for operation in result["operations"] if operation["action"] == "publish-card"]
+        self.assertEqual([operation["taskList"] for operation in publishes], ["验收条件", "下一步"])
+        self.assertEqual(publishes[1]["tasks"], ["Export PDF", "Attach source file"])
 
     def test_secret_like_content_is_rejected(self):
         summary = {
             "tasks": [task()],
-            "primaryNextTask": {"title": "Next", "relationship": "new", "steps": []},
+            "primaryNextTask": new_next(),
         }
         summary["tasks"][0]["summary"] = "Authorization: Bearer secret"
         with self.assertRaisesRegex(ValidationError, "credential"):
