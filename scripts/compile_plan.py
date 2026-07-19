@@ -498,15 +498,6 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                         "commentMode": "append-once",
                     }
                 )
-            else:
-                operations.append(
-                    {
-                        "action": "comment",
-                        **card_reference(config, task),
-                        "text": comment,
-                        "commentMode": "append-once",
-                    }
-                )
 
     if next_task and next_task["relationship"] == "new":
         next_publish: dict[str, Any] = {
@@ -536,16 +527,6 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                     "moveExistingToTargetList": True,
                 }
             )
-        operations.append(
-            {
-                "action": "comment",
-                "boardId": config["boardId"],
-                "title": next_task["title"],
-                "sourceList": config["lists"]["todo"],
-                "text": f"[to-kanban:{update_id}]\n来源：本次对话收尾生成\n下一步：{next_task['title']}",
-                "commentMode": "append-once",
-            }
-        )
 
     return {
         "metadata": {

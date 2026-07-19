@@ -71,7 +71,7 @@ class CompilePlanTests(unittest.TestCase):
         result = compile_plan(CONFIG, summary, board([{"id": "card-1", "name": "Implement feature"}]))
         self.assertEqual(
             [op["action"] for op in result["operations"]],
-            ["complete-card", "publish-card", "publish-card", "comment"],
+            ["complete-card", "publish-card", "publish-card"],
         )
         self.assertEqual(result["operations"][0]["completeTasks"], "all")
         self.assertEqual(result["operations"][0]["moveToList"], "已完成")
@@ -192,6 +192,7 @@ class CompilePlanTests(unittest.TestCase):
         result = compile_plan(config, summary, snapshot)
         publishes = [operation for operation in result["operations"] if operation["action"] == "publish-card"]
         self.assertEqual([operation["title"] for operation in publishes], ["Capture this"])
+        self.assertEqual([operation["action"] for operation in result["operations"]], ["publish-card"])
         self.assertEqual(
             publishes[0]["description"],
             "目标：Summary for Capture this\n\n交付物：Deliverable for Capture this\n\n前置条件：\n- 无",
