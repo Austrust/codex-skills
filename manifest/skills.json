@@ -35,7 +35,7 @@
       "name": "to-kanban",
       "repository": "https://github.com/Austrust/to-kanban.git",
       "branch": "main",
-      "pinned_commit": "4b343f734c58cfe135904cea9f17a5ecbbee7561",
+      "pinned_commit": "5fee98ec509961f17a13306b72dee6e446fffcc4",
       "submodule_path": "repos/to-kanban",
       "source_path": "repos/to-kanban",
       "targets": ["codex", "agents"],
