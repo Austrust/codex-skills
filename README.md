@@ -12,6 +12,7 @@ bootstrap point for new machines.
 | `neat-freak` | `Austrust/neat-freak` | `repos/neat-freak` |
 | `planka-kanban` | `Austrust/planka-kanban` | `repos/planka-kanban` |
 | `to-kanban` | `Austrust/to-kanban` | `repos/to-kanban` |
+| `research-paper-writing` | `Austrust/Research-Paper-Writing-Skills` | `repos/research-paper-writing/research-paper-writing` |
 | `scientific-data-report` | `Austrust/scientific-data-report` | `repos/scientific-data-report` |
 | `research-report-index` | `Austrust/research-report-index` | `repos/research-report-index` |
 | `research-readme-index` | `Austrust/research-readme-index` | `repos/research-readme-index` |
@@ -19,6 +20,10 @@ bootstrap point for new machines.
 
 The exact pinned commits are recorded in `manifest/skills.json` and in the
 submodule gitlinks.
+
+`research-paper-writing` is maintained as a fork of
+`Master-cai/Research-Paper-Writing-Skills`, preserving the upstream history,
+license, and attribution.
 
 ## Install On A New Machine
 

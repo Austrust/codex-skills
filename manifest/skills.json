@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-19",
+  "generated_at": "2026-07-24",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -40,6 +40,15 @@
       "source_path": "repos/to-kanban",
       "targets": ["codex", "agents"],
       "dependencies": ["planka-kanban"]
+    },
+    {
+      "name": "research-paper-writing",
+      "repository": "https://github.com/Austrust/Research-Paper-Writing-Skills.git",
+      "branch": "main",
+      "pinned_commit": "77e7c2c1ba06f7d71844873147665437a03aac1b",
+      "submodule_path": "repos/research-paper-writing",
+      "source_path": "repos/research-paper-writing/research-paper-writing",
+      "targets": ["codex", "agents"]
     },
     {
       "name": "scientific-data-report",
