@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-24",
+  "generated_at": "2026-08-14",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
@@ -84,6 +84,15 @@
       "pinned_commit": "66451ef69d36edaabafa8a0f8bc4fcc98269589e",
       "submodule_path": "repos/zotero-literature-guide",
       "source_path": "repos/zotero-literature-guide",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "maintain-knowledge-base",
+      "repository": "https://github.com/Austrust/maintain-knowledge-base.git",
+      "branch": "main",
+      "pinned_commit": "655707ed542cda4623c00b6c034d8d63e9163fab",
+      "submodule_path": "repos/maintain-knowledge-base",
+      "source_path": "repos/maintain-knowledge-base",
       "targets": ["codex", "agents"]
     }
   ]
