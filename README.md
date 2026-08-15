@@ -17,6 +17,7 @@ bootstrap point for new machines.
 | `research-report-index` | `Austrust/research-report-index` | `repos/research-report-index` |
 | `research-readme-index` | `Austrust/research-readme-index` | `repos/research-readme-index` |
 | `zotero-literature-guide` | `Austrust/codex-skill-zotero-literature-guide` | `repos/zotero-literature-guide` |
+| `maintain-knowledge-base` | `Austrust/maintain-knowledge-base` | `repos/maintain-knowledge-base` |
 
 The exact pinned commits are recorded in `manifest/skills.json` and in the
 submodule gitlinks.

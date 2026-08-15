@@ -34,3 +34,7 @@
 	path = repos/research-paper-writing
 	url = https://github.com/Austrust/Research-Paper-Writing-Skills.git
 	branch = main
+[submodule "repos/maintain-knowledge-base"]
+	path = repos/maintain-knowledge-base
+	url = https://github.com/Austrust/maintain-knowledge-base.git
+	branch = main
