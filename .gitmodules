@@ -38,3 +38,7 @@
 	path = repos/maintain-knowledge-base
 	url = https://github.com/Austrust/maintain-knowledge-base.git
 	branch = main
+[submodule "repos/grill-me"]
+	path = repos/grill-me
+	url = https://github.com/Austrust/mattpocock-skills.git
+	branch = main

@@ -8,6 +8,8 @@ bootstrap point for new machines.
 
 | Skill | Repository | Source path |
 |---|---|---|
+| `grill-me` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grill-me` |
+| `grilling` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grilling` |
 | `research-folder-organizer` | `Austrust/codex-skill-research-folder-organizer` | `repos/research-folder-organizer/research-folder-organizer` |
 | `neat-freak` | `Austrust/neat-freak` | `repos/neat-freak` |
 | `planka-kanban` | `Austrust/planka-kanban` | `repos/planka-kanban` |
@@ -21,6 +23,11 @@ bootstrap point for new machines.
 
 The exact pinned commits are recorded in `manifest/skills.json` and in the
 submodule gitlinks.
+
+`grill-me` and its `grilling` dependency come from the fork of
+[`mattpocock/skills`](https://github.com/mattpocock/skills), preserving upstream
+history and the MIT license. Install both with
+`.\scripts\install.ps1 -Target codex -Skill grill-me`.
 
 `research-paper-writing` is maintained as a fork of
 `Master-cai/Research-Paper-Writing-Skills`, preserving the upstream history,

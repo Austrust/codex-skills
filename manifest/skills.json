@@ -1,9 +1,28 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14",
+  "generated_at": "2026-09-22",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
+    {
+      "name": "grilling",
+      "repository": "https://github.com/Austrust/mattpocock-skills.git",
+      "branch": "main",
+      "pinned_commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
+      "submodule_path": "repos/grill-me",
+      "source_path": "repos/grill-me/skills/productivity/grilling",
+      "targets": ["codex", "agents"]
+    },
+    {
+      "name": "grill-me",
+      "repository": "https://github.com/Austrust/mattpocock-skills.git",
+      "branch": "main",
+      "pinned_commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
+      "submodule_path": "repos/grill-me",
+      "source_path": "repos/grill-me/skills/productivity/grill-me",
+      "targets": ["codex", "agents"],
+      "dependencies": ["grilling"]
+    },
     {
       "name": "research-folder-organizer",
       "repository": "https://github.com/Austrust/codex-skill-research-folder-organizer.git",
