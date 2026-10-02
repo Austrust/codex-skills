@@ -1,9 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-22",
+  "generated_at": "2026-10-02",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
+    {
+      "name": "anti-defensive-writing",
+      "repository": "https://github.com/Kiterlin/anti-defensive-writing.git",
+      "branch": "main",
+      "pinned_commit": "c7edf8fc91ae9c4f7e58345bd12934bb4cf41c46",
+      "submodule_path": "repos/anti-defensive-writing",
+      "source_path": "repos/anti-defensive-writing/skill/anti-defensive-writing",
+      "targets": ["codex", "agents"]
+    },
     {
       "name": "grilling",
       "repository": "https://github.com/Austrust/mattpocock-skills.git",

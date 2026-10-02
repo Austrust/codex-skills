@@ -8,6 +8,7 @@ bootstrap point for new machines.
 
 | Skill | Repository | Source path |
 |---|---|---|
+| `anti-defensive-writing` | `Kiterlin/anti-defensive-writing` | `repos/anti-defensive-writing/skill/anti-defensive-writing` |
 | `grill-me` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grill-me` |
 | `grilling` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grilling` |
 | `research-folder-organizer` | `Austrust/codex-skill-research-folder-organizer` | `repos/research-folder-organizer/research-folder-organizer` |
@@ -23,6 +24,11 @@ bootstrap point for new machines.
 
 The exact pinned commits are recorded in `manifest/skills.json` and in the
 submodule gitlinks.
+
+`anti-defensive-writing` is pinned directly from
+[`Kiterlin/anti-defensive-writing`](https://github.com/Kiterlin/anti-defensive-writing),
+preserving its upstream history, MIT license, and attribution. Install it with
+`.\scripts\install.ps1 -Target agents -Skill anti-defensive-writing`.
 
 `grill-me` and its `grilling` dependency come from the fork of
 [`mattpocock/skills`](https://github.com/mattpocock/skills), preserving upstream

@@ -42,3 +42,7 @@
 	path = repos/grill-me
 	url = https://github.com/Austrust/mattpocock-skills.git
 	branch = main
+[submodule "repos/anti-defensive-writing"]
+	path = repos/anti-defensive-writing
+	url = https://github.com/Kiterlin/anti-defensive-writing.git
+	branch = main
