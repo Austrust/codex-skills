@@ -1,9 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-02",
+  "generated_at": "2026-10-04",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
+    {
+      "name": "reader-first-communication",
+      "repository": "https://github.com/Austrust/reader-first-communication.git",
+      "branch": "main",
+      "pinned_commit": "b90936064ae6ce7157b1b0f35311ab09740d9355",
+      "submodule_path": "repos/reader-first-communication",
+      "source_path": "repos/reader-first-communication",
+      "targets": ["codex", "agents"]
+    },
     {
       "name": "anti-defensive-writing",
       "repository": "https://github.com/Kiterlin/anti-defensive-writing.git",

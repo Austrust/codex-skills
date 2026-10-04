@@ -8,6 +8,7 @@ bootstrap point for new machines.
 
 | Skill | Repository | Source path |
 |---|---|---|
+| `reader-first-communication` | `Austrust/reader-first-communication` | `repos/reader-first-communication` |
 | `anti-defensive-writing` | `Kiterlin/anti-defensive-writing` | `repos/anti-defensive-writing/skill/anti-defensive-writing` |
 | `grill-me` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grill-me` |
 | `grilling` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grilling` |
