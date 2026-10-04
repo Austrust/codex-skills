@@ -122,6 +122,18 @@
       "submodule_path": "repos/maintain-knowledge-base",
       "source_path": "repos/maintain-knowledge-base",
       "targets": ["codex", "agents"]
+    },
+    {
+      "name": "research-illustrated-guide",
+      "repository": "https://github.com/Austrust/research-illustrated-guide.git",
+      "branch": "main",
+      "pinned_commit": "8097999c1fe808985e3cd5716d60ae36772ba572",
+      "submodule_path": "repos/research-illustrated-guide",
+      "source_path": "repos/research-illustrated-guide",
+      "targets": [
+        "codex",
+        "agents"
+      ]
     }
   ]
 }

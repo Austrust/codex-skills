@@ -46,3 +46,7 @@
 	path = repos/anti-defensive-writing
 	url = https://github.com/Kiterlin/anti-defensive-writing.git
 	branch = main
+[submodule "repos/research-illustrated-guide"]
+	path = repos/research-illustrated-guide
+	url = https://github.com/Austrust/research-illustrated-guide.git
+	branch = main
