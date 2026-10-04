@@ -1,0 +1,4 @@
+interface:
+  display_name: "领域调研与图文导读"
+  short_description: "综合论文与网络资料，讲清领域原理、方法发展与路线比较，生成可追溯图文导读"
+  default_prompt: "使用 $research-illustrated-guide 调研光纤测温，目标是理解主要技术路线并比较其在岩石实验中的适用性。"
