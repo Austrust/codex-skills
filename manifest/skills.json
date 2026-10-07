@@ -1,9 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-04",
+  "generated_at": "2026-10-07",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
+    {
+      "name": "overleaf",
+      "repository": "https://github.com/Austrust/overleaf.git",
+      "branch": "main",
+      "pinned_commit": "0793132aa85a61f95c528a4704a64a3ac5df36d9",
+      "submodule_path": "repos/overleaf",
+      "source_path": "repos/overleaf/overleaf",
+      "targets": ["codex", "agents"]
+    },
     {
       "name": "reader-first-communication",
       "repository": "https://github.com/Austrust/reader-first-communication.git",

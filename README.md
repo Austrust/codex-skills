@@ -8,6 +8,7 @@ bootstrap point for new machines.
 
 | Skill | Repository | Source path |
 |---|---|---|
+| `overleaf` | `Austrust/overleaf` | `repos/overleaf/overleaf` |
 | `reader-first-communication` | `Austrust/reader-first-communication` | `repos/reader-first-communication` |
 | `anti-defensive-writing` | `Kiterlin/anti-defensive-writing` | `repos/anti-defensive-writing/skill/anti-defensive-writing` |
 | `grill-me` | `Austrust/mattpocock-skills` | `repos/grill-me/skills/productivity/grill-me` |
@@ -26,6 +27,11 @@ bootstrap point for new machines.
 
 The exact pinned commits are recorded in `manifest/skills.json` and in the
 submodule gitlinks.
+
+`overleaf` supports native Git source synchronization and project web
+compilation/PDF download. Its optional Python helper targets the verified CE+
+6.3 flow. Install it with `.\scripts\install.ps1 -Target codex -Skill overleaf`;
+keep instance URLs and credentials in private runtime configuration.
 
 `anti-defensive-writing` is pinned directly from
 [`Kiterlin/anti-defensive-writing`](https://github.com/Kiterlin/anti-defensive-writing),

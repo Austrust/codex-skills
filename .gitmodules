@@ -54,3 +54,7 @@
 	path = repos/reader-first-communication
 	url = https://github.com/Austrust/reader-first-communication.git
 	branch = main
+[submodule "repos/overleaf"]
+	path = repos/overleaf
+	url = https://github.com/Austrust/overleaf.git
+	branch = main
