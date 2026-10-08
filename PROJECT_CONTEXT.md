@@ -17,8 +17,9 @@ reproducible upstream source. `scripts/update-upstream.ps1` refreshes these pins
 to the current original-upstream branch; installation also refreshes selected
 upstreams unless `-SkipSubmoduleUpdate` is supplied.
 
-The GitHub Actions upstream workflow runs daily at 10:00 Asia/Shanghai, with a
-manual trigger as well. It validates and commits changed third-party pins.
+The user selected synchronization only during installation or manual updates.
+The GitHub Actions upstream workflow supports manual dispatch and validates and
+commits changed pins. There is no scheduled synchronization.
 
 Edit personal sources, validate, then commit and push this collection once.
 Third-party refreshes commit gitlinks and the manifest together. Updating source

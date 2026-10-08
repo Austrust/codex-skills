@@ -80,9 +80,9 @@ command in place of `python` when needed.
 
 ## Keep third-party skills current
 
-[The update workflow](.github/workflows/update-upstream.yml) runs daily at 10:00
-Asia/Shanghai and can also be triggered manually from GitHub Actions. It refreshes
-original upstream branches, validates sources, and commits only changed pins.
+[The update workflow](.github/workflows/update-upstream.yml) can be triggered
+manually from GitHub Actions. It refreshes original upstream branches, validates
+sources, and commits only changed pins. There is no scheduled synchronization.
 It does not replace installed copies on individual machines.
 
 

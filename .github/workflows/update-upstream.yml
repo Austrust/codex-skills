@@ -1,9 +1,6 @@
 name: Update third-party skills
 
 on:
-  schedule:
-    # 10:00 Asia/Shanghai, every day.
-    - cron: '0 2 * * *'
   workflow_dispatch:
 
 permissions:
