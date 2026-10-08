@@ -1,157 +1,235 @@
 {
-  "schema_version": 1,
-  "generated_at": "2026-10-07",
+  "schema_version": 2,
+  "generated_at": "2026-10-08",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [
     {
       "name": "overleaf",
-      "repository": "https://github.com/Austrust/overleaf.git",
-      "branch": "main",
-      "pinned_commit": "0793132aa85a61f95c528a4704a64a3ac5df36d9",
-      "submodule_path": "repos/overleaf",
       "source_path": "repos/overleaf/overleaf",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/overleaf.git",
+        "commit": "0793132aa85a61f95c528a4704a64a3ac5df36d9",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "reader-first-communication",
-      "repository": "https://github.com/Austrust/reader-first-communication.git",
-      "branch": "main",
-      "pinned_commit": "b90936064ae6ce7157b1b0f35311ab09740d9355",
-      "submodule_path": "repos/reader-first-communication",
       "source_path": "repos/reader-first-communication",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/reader-first-communication.git",
+        "commit": "b90936064ae6ce7157b1b0f35311ab09740d9355",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "anti-defensive-writing",
+      "source_path": "repos/anti-defensive-writing/skill/anti-defensive-writing",
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "storage": "submodule",
       "repository": "https://github.com/Kiterlin/anti-defensive-writing.git",
       "branch": "main",
       "pinned_commit": "c7edf8fc91ae9c4f7e58345bd12934bb4cf41c46",
-      "submodule_path": "repos/anti-defensive-writing",
-      "source_path": "repos/anti-defensive-writing/skill/anti-defensive-writing",
-      "targets": ["codex", "agents"]
+      "submodule_path": "repos/anti-defensive-writing"
     },
     {
       "name": "grilling",
-      "repository": "https://github.com/Austrust/mattpocock-skills.git",
-      "branch": "main",
-      "pinned_commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
-      "submodule_path": "repos/grill-me",
       "source_path": "repos/grill-me/skills/productivity/grilling",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "storage": "submodule",
+      "repository": "https://github.com/mattpocock/skills.git",
+      "branch": "main",
+      "pinned_commit": "b0618bc436ad893b3c5e84e55fba86586d34a404",
+      "submodule_path": "repos/grill-me"
     },
     {
       "name": "grill-me",
-      "repository": "https://github.com/Austrust/mattpocock-skills.git",
-      "branch": "main",
-      "pinned_commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
-      "submodule_path": "repos/grill-me",
       "source_path": "repos/grill-me/skills/productivity/grill-me",
-      "targets": ["codex", "agents"],
-      "dependencies": ["grilling"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "dependencies": [
+        "grilling"
+      ],
+      "storage": "submodule",
+      "repository": "https://github.com/mattpocock/skills.git",
+      "branch": "main",
+      "pinned_commit": "b0618bc436ad893b3c5e84e55fba86586d34a404",
+      "submodule_path": "repos/grill-me"
     },
     {
       "name": "research-folder-organizer",
-      "repository": "https://github.com/Austrust/codex-skill-research-folder-organizer.git",
-      "branch": "main",
-      "pinned_commit": "570c53d558d49e4b4e66d266409d058e1e3eefec",
-      "submodule_path": "repos/research-folder-organizer",
       "source_path": "repos/research-folder-organizer/research-folder-organizer",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/codex-skill-research-folder-organizer.git",
+        "commit": "570c53d558d49e4b4e66d266409d058e1e3eefec",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "neat-freak",
-      "repository": "https://github.com/Austrust/neat-freak.git",
-      "branch": "main",
-      "pinned_commit": "cc5a3342a0c80635be17d36090d795b4786445bf",
-      "submodule_path": "repos/neat-freak",
       "source_path": "repos/neat-freak",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/neat-freak.git",
+        "commit": "cc5a3342a0c80635be17d36090d795b4786445bf",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "planka-kanban",
-      "repository": "https://github.com/Austrust/planka-kanban.git",
-      "branch": "main",
-      "pinned_commit": "cf73085e298ab3d4e89ae169783a3bdd7b7e9de4",
-      "submodule_path": "repos/planka-kanban",
       "source_path": "repos/planka-kanban",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/planka-kanban.git",
+        "commit": "cf73085e298ab3d4e89ae169783a3bdd7b7e9de4",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "to-kanban",
-      "repository": "https://github.com/Austrust/to-kanban.git",
-      "branch": "main",
-      "pinned_commit": "5fee98ec509961f17a13306b72dee6e446fffcc4",
-      "submodule_path": "repos/to-kanban",
       "source_path": "repos/to-kanban",
-      "targets": ["codex", "agents"],
-      "dependencies": ["planka-kanban"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "dependencies": [
+        "planka-kanban"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/to-kanban.git",
+        "commit": "5fee98ec509961f17a13306b72dee6e446fffcc4",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "research-paper-writing",
-      "repository": "https://github.com/Austrust/Research-Paper-Writing-Skills.git",
+      "source_path": "repos/research-paper-writing/research-paper-writing",
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "storage": "submodule",
+      "repository": "https://github.com/Master-cai/Research-Paper-Writing-Skills.git",
       "branch": "main",
       "pinned_commit": "77e7c2c1ba06f7d71844873147665437a03aac1b",
-      "submodule_path": "repos/research-paper-writing",
-      "source_path": "repos/research-paper-writing/research-paper-writing",
-      "targets": ["codex", "agents"]
+      "submodule_path": "repos/research-paper-writing"
     },
     {
       "name": "scientific-data-report",
-      "repository": "https://github.com/Austrust/scientific-data-report.git",
-      "branch": "main",
-      "pinned_commit": "5656e65e7b36f663496c36b6ed8312b29f41b01e",
-      "submodule_path": "repos/scientific-data-report",
       "source_path": "repos/scientific-data-report",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/scientific-data-report.git",
+        "commit": "5656e65e7b36f663496c36b6ed8312b29f41b01e",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "research-report-index",
-      "repository": "https://github.com/Austrust/research-report-index.git",
-      "branch": "main",
-      "pinned_commit": "ef2ce820ed2c425fb6377a5caf3971319e93148d",
-      "submodule_path": "repos/research-report-index",
       "source_path": "repos/research-report-index",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/research-report-index.git",
+        "commit": "ef2ce820ed2c425fb6377a5caf3971319e93148d",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "research-readme-index",
-      "repository": "https://github.com/Austrust/research-readme-index.git",
-      "branch": "main",
-      "pinned_commit": "2f94cc16508764657aa427c67d5684bb9bc29494",
-      "submodule_path": "repos/research-readme-index",
       "source_path": "repos/research-readme-index",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/research-readme-index.git",
+        "commit": "2f94cc16508764657aa427c67d5684bb9bc29494",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "zotero-literature-guide",
-      "repository": "https://github.com/Austrust/codex-skill-zotero-literature-guide.git",
-      "branch": "main",
-      "pinned_commit": "66451ef69d36edaabafa8a0f8bc4fcc98269589e",
-      "submodule_path": "repos/zotero-literature-guide",
       "source_path": "repos/zotero-literature-guide",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/codex-skill-zotero-literature-guide.git",
+        "commit": "66451ef69d36edaabafa8a0f8bc4fcc98269589e",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "maintain-knowledge-base",
-      "repository": "https://github.com/Austrust/maintain-knowledge-base.git",
-      "branch": "main",
-      "pinned_commit": "655707ed542cda4623c00b6c034d8d63e9163fab",
-      "submodule_path": "repos/maintain-knowledge-base",
       "source_path": "repos/maintain-knowledge-base",
-      "targets": ["codex", "agents"]
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/maintain-knowledge-base.git",
+        "commit": "655707ed542cda4623c00b6c034d8d63e9163fab",
+        "branch": "main"
+      },
+      "storage": "vendored"
     },
     {
       "name": "research-illustrated-guide",
-      "repository": "https://github.com/Austrust/research-illustrated-guide.git",
-      "branch": "main",
-      "pinned_commit": "8097999c1fe808985e3cd5716d60ae36772ba572",
-      "submodule_path": "repos/research-illustrated-guide",
       "source_path": "repos/research-illustrated-guide",
       "targets": [
         "codex",
         "agents"
-      ]
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/research-illustrated-guide.git",
+        "commit": "8097999c1fe808985e3cd5716d60ae36772ba572",
+        "branch": "main"
+      },
+      "storage": "vendored"
     }
-  ]
+  ],
+  "repository_model": "hybrid"
 }

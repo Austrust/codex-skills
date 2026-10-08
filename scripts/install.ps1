@@ -7,6 +7,7 @@ param(
 
     [switch]$Force,
 
+    # Skip network refresh for an already-populated checkout or offline snapshot.
     [switch]$SkipSubmoduleUpdate
 )
 
@@ -20,18 +21,10 @@ if (-not (Test-Path $ManifestPath)) {
     throw "Missing manifest: $ManifestPath"
 }
 
-if (-not $SkipSubmoduleUpdate) {
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        throw "git is required unless -SkipSubmoduleUpdate is supplied."
-    }
-
-    git -C $RepoRoot submodule update --init --recursive
-    if ($LASTEXITCODE -ne 0) {
-        throw "git submodule update failed."
-    }
-}
-
 $Manifest = Get-Content -Raw -Path $ManifestPath | ConvertFrom-Json
+if ($Manifest.schema_version -ne 2 -or $Manifest.repository_model -ne "hybrid") {
+    throw "Expected a schema 2 hybrid manifest."
+}
 
 function Get-TargetRoots {
     param([string]$RequestedTarget)
@@ -111,6 +104,27 @@ $Entries = @($ResolvedEntries)
 
 $TargetRoots = Get-TargetRoots -RequestedTarget $Target
 
+# Third-party sources follow their original upstreams; personal sources are bundled.
+$UpstreamPaths = @($Entries | Where-Object { $_.storage -eq 'submodule' } | ForEach-Object { $_.submodule_path } | Select-Object -Unique)
+if (-not $SkipSubmoduleUpdate -and $UpstreamPaths.Count -gt 0) {
+    & (Join-Path $ScriptDir 'update-upstream.ps1') -SubmodulePath $UpstreamPaths
+}
+
+# Validate all selected sources before creating any installed folders.
+foreach ($Entry in $Entries) {
+    if ($Entry.name -notmatch '^[a-z0-9]+(-[a-z0-9]+)*$') {
+        throw "Invalid skill directory name: $($Entry.name)"
+    }
+    $CheckedSource = [IO.Path]::GetFullPath((Join-Path $RepoRoot $Entry.source_path))
+    $SourcePrefix = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    if (-not $CheckedSource.StartsWith($SourcePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Skill source must remain inside the collection: $($Entry.name)"
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $CheckedSource 'SKILL.md') -PathType Leaf)) {
+        throw "Missing SKILL.md for $($Entry.name)"
+    }
+}
+
 foreach ($Entry in $Entries) {
     $SourcePath = Join-Path $RepoRoot $Entry.source_path
     if (-not (Test-Path (Join-Path $SourcePath "SKILL.md"))) {
@@ -126,10 +140,30 @@ foreach ($Entry in $Entries) {
                 Write-Host "skip $($Entry.name) -> $($TargetRoot.Name), already exists: $Destination"
                 continue
             }
-            Remove-Item -LiteralPath $Destination -Recurse -Force
+            $ResolvedRoot = [IO.Path]::GetFullPath($TargetRoot.Path).TrimEnd('\', '/')
+            $ResolvedDestination = [IO.Path]::GetFullPath($Destination)
+            if ([IO.Path]::GetDirectoryName($ResolvedDestination) -ne $ResolvedRoot) {
+                throw "Destination is outside the intended skills directory."
+            }
+            # Keep an existing installation recoverable, outside skill discovery.
+            $BackupRoot = Join-Path (Split-Path -Parent $ResolvedRoot) 'skill-backups'
+            New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
+            $Backup = Join-Path $BackupRoot ($Entry.name + '-' + [guid]::NewGuid().ToString('N'))
+            Move-Item -LiteralPath $ResolvedDestination -Destination $Backup
+            Write-Host "backup $($Entry.name) -> $Backup"
         }
 
-        Copy-Item -LiteralPath $SourcePath -Destination $Destination -Recurse -Force
+        New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+        $SourceAbsolute = (Resolve-Path -LiteralPath $SourcePath).Path.TrimEnd('\', '/')
+        foreach ($File in Get-ChildItem -LiteralPath $SourcePath -Recurse -File -Force) {
+            $Relative = $File.FullName.Substring($SourceAbsolute.Length + 1)
+            if ($Relative -match '(^|[\\/])(\.git|__pycache__|\.pytest_cache|\.test-state)([\\/]|$)' -or $Relative -match '\.py[co]$') {
+                continue
+            }
+            $OutputPath = Join-Path $Destination $Relative
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
+            Copy-Item -LiteralPath $File.FullName -Destination $OutputPath
+        }
         Write-Host "installed $($Entry.name) -> $Destination"
     }
 }

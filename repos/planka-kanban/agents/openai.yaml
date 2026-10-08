@@ -1,0 +1,4 @@
+interface:
+  display_name: "Planka Kanban"
+  short_description: "Edit Planka boards safely through the REST API."
+  default_prompt: "Use $planka-kanban to inspect and edit a Planka board through the API."

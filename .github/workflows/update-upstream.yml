@@ -1,0 +1,49 @@
+name: Update third-party skills
+
+on:
+  schedule:
+    # 10:00 Asia/Shanghai, every day.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-third-party-skills
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refresh original upstreams
+        shell: pwsh
+        run: ./scripts/update-upstream.ps1
+      - name: Validate sources and dependencies
+        shell: pwsh
+        run: |
+          python scripts/validate.py
+          if ($LASTEXITCODE -ne 0) { throw 'Source validation failed.' }
+      - name: Commit updated pins
+        shell: pwsh
+        run: |
+          git add -- manifest/skills.json repos/anti-defensive-writing repos/grill-me repos/research-paper-writing
+          if ($LASTEXITCODE -ne 0) { throw 'Staging upstream pins failed.' }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host 'Upstreams unchanged.'; exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Checking upstream changes failed.' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update third-party skills from original upstreams'
+          if ($LASTEXITCODE -ne 0) { throw 'Committing upstream pins failed.' }
+          git push
+          if ($LASTEXITCODE -ne 0) { throw 'Pushing upstream pins failed.' }

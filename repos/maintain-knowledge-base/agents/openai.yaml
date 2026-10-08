@@ -1,0 +1,4 @@
+interface:
+  display_name: "长期知识库维护"
+  short_description: "构建、维护并审计面向科研与事务工作的长期本地知识库"
+  default_prompt: "Use $maintain-knowledge-base to configure, create, or safely update my long-term local knowledge base."

@@ -1,60 +1,12 @@
-[submodule "repos/research-folder-organizer"]
-	path = repos/research-folder-organizer
-	url = https://github.com/Austrust/codex-skill-research-folder-organizer.git
-	branch = main
-[submodule "repos/planka-kanban"]
-	path = repos/planka-kanban
-	url = https://github.com/Austrust/planka-kanban.git
-	branch = main
-[submodule "repos/scientific-data-report"]
-	path = repos/scientific-data-report
-	url = https://github.com/Austrust/scientific-data-report.git
-	branch = main
-[submodule "repos/research-report-index"]
-	path = repos/research-report-index
-	url = https://github.com/Austrust/research-report-index.git
-	branch = main
-[submodule "repos/zotero-literature-guide"]
-	path = repos/zotero-literature-guide
-	url = https://github.com/Austrust/codex-skill-zotero-literature-guide.git
-	branch = main
-[submodule "repos/research-readme-index"]
-	path = repos/research-readme-index
-	url = https://github.com/Austrust/research-readme-index.git
-	branch = main
-[submodule "repos/neat-freak"]
-	path = repos/neat-freak
-	url = https://github.com/Austrust/neat-freak.git
-	branch = main
-[submodule "repos/to-kanban"]
-	path = repos/to-kanban
-	url = https://github.com/Austrust/to-kanban.git
-	branch = main
-[submodule "repos/research-paper-writing"]
-	path = repos/research-paper-writing
-	url = https://github.com/Austrust/Research-Paper-Writing-Skills.git
-	branch = main
-[submodule "repos/maintain-knowledge-base"]
-	path = repos/maintain-knowledge-base
-	url = https://github.com/Austrust/maintain-knowledge-base.git
-	branch = main
-[submodule "repos/grill-me"]
-	path = repos/grill-me
-	url = https://github.com/Austrust/mattpocock-skills.git
-	branch = main
 [submodule "repos/anti-defensive-writing"]
 	path = repos/anti-defensive-writing
 	url = https://github.com/Kiterlin/anti-defensive-writing.git
 	branch = main
-[submodule "repos/research-illustrated-guide"]
-	path = repos/research-illustrated-guide
-	url = https://github.com/Austrust/research-illustrated-guide.git
+[submodule "repos/grill-me"]
+	path = repos/grill-me
+	url = https://github.com/mattpocock/skills.git
 	branch = main
-[submodule "repos/reader-first-communication"]
-	path = repos/reader-first-communication
-	url = https://github.com/Austrust/reader-first-communication.git
-	branch = main
-[submodule "repos/overleaf"]
-	path = repos/overleaf
-	url = https://github.com/Austrust/overleaf.git
+[submodule "repos/research-paper-writing"]
+	path = repos/research-paper-writing
+	url = https://github.com/Master-cai/Research-Paper-Writing-Skills.git
 	branch = main

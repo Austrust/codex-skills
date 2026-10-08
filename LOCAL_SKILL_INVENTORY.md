@@ -1,3 +1,5 @@
+> Historical pre-migration snapshot. Current sources, ownership, and dependencies are defined by `manifest/skills.json` schema 2. Personal skills no longer require separate repositories; third-party skills retain original-upstream submodules.
+
 # Local Skill Inventory
 
 This inventory was captured from the current machine on 2026-06-05 and updated
