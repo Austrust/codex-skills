@@ -1,20 +1,25 @@
 ---
 name: overleaf
-description: Work on existing Overleaf projects through native Git, synchronize LaTeX sources, resolve web/local changes, and compile or download project outputs. Supports Overleaf Cloud and self-hosted CE+ with Git Bridge. Use when the user asks to read, edit, sync, or compile an Overleaf project; ordinary standalone LaTeX documents can use the host's built-in editor.
+description: Read, edit, and synchronize existing Overleaf projects through native Git, with local build checks and server compilation when needed. Supports Overleaf Cloud and self-hosted CE+ with Git Bridge. Use when the user asks to read, edit, sync, or compile an Overleaf project; ordinary standalone LaTeX documents can use the host's built-in editor.
 ---
 
 # Overleaf
 
-Use Git for source changes and the project web interface for compilation and
-collaboration settings. Git synchronization alone does not verify a PDF build.
+Default to native Git for project source discovery, reads, edits, synchronization,
+and source verification. Check builds locally first; use a compatible server
+helper when server compilation is needed. Browser automation is a fallback,
+not a prerequisite. Honor the user's tool preference and distinguish source
+synchronization, local compilation, and server compilation in the result.
 
 ## Establish the target
 
 - Infer the instance and project from the user's link, existing checkout, or
   private runtime configuration. If several projects match, resolve the target
   before writing. Never use a demonstration project as an implicit destination.
-- Check whether native Git is available in the project's **Integrations → Git**
-  menu. Cloud entitlement and self-hosted Git Bridge configuration vary.
+- Use a supplied Git URL or confirmed existing remote directly. Do not open
+  **Integrations → Git** merely to recheck an endpoint already available.
+  If no endpoint is known, inspect existing remotes or private configuration;
+  use the menu only when that discovery cannot establish native Git access.
 - Use a project member's account. Administrator access is only needed for an
   administration task. A working browser login is independent of Git access.
 - Read [Git workflow](references/git-workflow.md) for cloning, pulling,
@@ -22,8 +27,8 @@ collaboration settings. Git synchronization alone does not verify a PDF build.
 
 ## Edit and synchronize
 
-1. Inspect the working tree and the selected remote. Fetch the latest web state
-   before editing; preserve existing local changes and integrate deliberately.
+1. Inspect the working tree and the selected remote. Fetch the latest remote
+   source state before editing; preserve local changes and integrate deliberately.
 2. Discover the actual remote default branch. Current clones commonly use
    `main`; older ones can use `master`. Overleaf supports one project branch.
 3. Make the requested source changes, preserving root document, compiler,
@@ -31,9 +36,9 @@ collaboration settings. Git synchronization alone does not verify a PDF build.
 4. Review and commit the intended files, then push to the discovered branch
    when project synchronization is within the user's request. Existing
    authorization persists; do not introduce an extra approval for every push.
-5. Verify that the intended source reached Overleaf, then compile when the task
-   calls for a working document. Report source synchronization and compilation
-   separately if one succeeds and the other fails.
+5. Fetch after pushing and verify the intended files in the remote branch using
+   Git. A browser or source ZIP is not required to prove source synchronization.
+   Compile when the task calls for a working document, using the route below.
 
 On a rejected push, fetch again and inspect the actual divergence. Resolve a
 routine conflict within the requested scope; ask for an author decision when
@@ -43,17 +48,40 @@ sync pass.
 
 ## Compile and obtain outputs
 
-Prefer the authenticated browser's project editor: confirm the root document
-and compiler, recompile, inspect errors, and download the resulting PDF.
-Chinese projects using `ctex` commonly need XeLaTeX; preserve an already working
-compiler rather than changing it just because text is Chinese. Local `latexmk`
-is useful when installed, but a local build is not evidence of a server build.
+1. For ordinary source edits, use local `latexmk` or an available LaTeX compiler
+   to validate the document. Determine the root and compiler from project source,
+   configuration, and confirmed context. Chinese `ctex` projects commonly use
+   XeLaTeX; preserve a working engine. A local engine choice does not change the
+   stored Overleaf compiler setting. For a source-only request, Git verification
+   is sufficient; do not add a server build or browser visit automatically.
+2. Compile on the server when the user requests server verification, local build
+   tools cannot satisfy a required build, or a server-specific problem needs
+   diagnosis. For the verified self-hosted CE+ 6.3 workflow,
+   prefer the standard-library helper `scripts/overleaf_web.py` described in
+   [web operations](references/web-operations.md), when compatible web
+   authentication is available. It supports source ZIP export and server
+   compilation/PDF download. Its internal routes are version-dependent and do
+   not apply to Cloud SSO or arbitrary instances without verification.
+3. If the helper cannot handle a required server operation, use the narrow
+   browser fallback below. When server verification is optional and only Git
+   credentials are available, finish Git synchronization and the local build;
+   report the server build as unverified rather than opening a browser by default.
 
-For the tested self-hosted CE+ 6.3 workflow,
-[web operations](references/web-operations.md) describes the optional standard
-library helper `scripts/overleaf_web.py` for source ZIP export and server
-compilation/PDF download. Its internal routes are version-dependent, and it
-does not apply to Cloud SSO or arbitrary instances without verification.
+A local build proves only local compilation. Git does not include compiled PDFs
+and cannot trigger a server build by itself.
+
+## Browser fallback
+
+Use the browser when the user requests UI work, native Git is unavailable after
+diagnosis, a required server operation lacks a compatible helper, or project
+settings/annotations need a UI operation. State the concrete reason and limit
+actions to that capability; keep source changes in Git whenever practical.
+Respect an explicit Git-only request and report any remaining capability gap.
+
+A failed Git connection does not establish that Git is unavailable. Inspect
+execution sandbox/network permissions first and use the tool's supported
+permission path for an authorized retry. See [Git workflow](references/git-workflow.md)
+before switching to browser source editing or changing connection settings.
 
 ## Operational boundaries
 

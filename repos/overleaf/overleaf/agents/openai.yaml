@@ -1,6 +1,6 @@
 interface:
   display_name: "Overleaf"
-  short_description: "同步 Overleaf 项目源码，处理 Git 变更，验证网页编译并下载 PDF"
-  default_prompt: "使用 $overleaf 修改指定项目，同步源码并验证编译结果。"
+  short_description: "以 Git 同步 Overleaf 源码，优先本地编译，按需验证服务器构建"
+  default_prompt: "使用 $overleaf 通过 Git 修改并同步指定项目，先本地编译，按需验证服务器构建。"
 policy:
   allow_implicit_invocation: true

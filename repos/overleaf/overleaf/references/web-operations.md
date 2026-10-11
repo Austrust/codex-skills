@@ -1,10 +1,14 @@
-# CE+ web export and compilation helper
+# CE+ server export and compilation helper
 
 `scripts/overleaf_web.py` uses Python 3's standard library and an ephemeral
 cookie session. It was derived from a successfully verified CE+
 `6.3.0-ext-v5.1` / Overleaf 6.3.0 workflow. These routes are internal APIs,
-not a promised public contract. Prefer the browser for Cloud, SSO, or an
-instance whose route/response compatibility has not been established.
+not a promised public contract. Prefer this non-browser route for a required
+server build or source ZIP export on a compatible instance with web credentials.
+Use local compilation for ordinary source checks and native Git for source
+synchronization and verification. The helper does not apply to Cloud SSO or an
+unverified instance; browser use is a fallback only if a required operation
+cannot be completed through a compatible non-browser route.
 
 ```sh
 python scripts/overleaf_web.py --url https://latex.example.org --email <email> download <project-id> --output project.zip
@@ -17,6 +21,11 @@ subcommand. Do not place a literal password in a shell command or pipe it from
 a committed file. This is the **web password**, separate from the Git token.
 No cookie, token, or password is saved. Existing output files are protected;
 use `--overwrite` only when replacing the chosen output is intended.
+
+If only a Git token is available, finish the authorized Git work and local build.
+Obtain web authentication or use an allowed browser fallback only when server
+verification is required. Do not turn an optional server check into a browser
+visit or assume that the Git token is also a web password.
 
 The helper:
 
@@ -31,8 +40,10 @@ not rewrite project sources or change the stored compiler setting. The helper
 does not create projects, manage users/tokens, upload files, or delete data.
 Compiler choices: `pdflatex`, `xelatex`, `lualatex`; root path must be a relative
 `.tex` file. Errors return a nonzero exit code and a bounded diagnostic without
-dumping login responses or private download URLs. Inspect build details in the
-editor after a compilation failure; an old PDF is not a passing new build.
+dumping login responses or private download URLs. Start with the helper's
+returned diagnostic and local compiler logs after a failure; inspect the editor
+only when necessary server details are unavailable otherwise. An old PDF is not
+a passing new build.
 
 TLS certificates are always verified. `--connect-address <address>` is an
 optional per-invocation DNS diagnostic override; the hostname and SNI stay the

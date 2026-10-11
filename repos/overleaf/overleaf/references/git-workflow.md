@@ -2,7 +2,10 @@
 
 ## Authentication and remote selection
 
-Copy the Git URL from the project's Git integration menu. Typical forms:
+Use the user's supplied Git URL or a verified existing remote first. If no
+endpoint is known, inspect local checkout/configuration before using the project's
+Git integration menu. A supplied endpoint does not need a browser recheck.
+Typical forms:
 
 ```text
 Cloud:       https://git.overleaf.com/<project-id>
@@ -77,8 +80,11 @@ git fetch <overleaf-remote>
 
 If nothing changed, do not manufacture a commit. Stage only the intended
 files. Keep generated build artifacts out unless the project actually tracks
-them. Verify the pushed files through the editor or a fresh source ZIP;
-concurrent browser edits can create a different subsequent remote commit.
+them. Fetch the remote and verify the intended files with Git, for example
+`git show <remote>/<branch>:<path>` or a scoped diff against the pushed commit.
+Concurrent web edits can create a subsequent remote commit; inspect its source
+rather than force-pushing to restore a particular HEAD. An editor visit or fresh
+source ZIP is optional corroboration, not the default verification step.
 
 Keep development branches on the ordinary Git repository. Overleaf does not
 support multiple branches, tags, LFS, or nested Git submodules. Symlinks become
@@ -93,6 +99,17 @@ an empty old folder; handle this in the editor rather than guessing a delete.
 
 ## Diagnose the actual failure
 
+- Execution restrictions first: check whether the command is running with
+  network access disabled and whether process proxy variables differ from
+  persistent user/system configuration. Inspect only redacted endpoints and
+  relevant configuration origins, not a dump of credentials or all environment
+  variables. An unreachable loopback proxy or Windows Schannel
+  `AcquireCredentialsHandle` failure can come from the execution context rather
+  than the Overleaf service or Git token. Use the tool's supported network
+  permission/escalation path when allowed, then retry with normal Git/TLS
+  settings. A restriction marker alone is not a substitute for the actual
+  permission state and connection result. Do not clear injected proxies, switch
+  TLS backends, or weaken certificate checks to bypass sandbox restrictions.
 - Authentication failure: check token validity, username, project membership,
   and the copied integration URL. Do not substitute the web password.
 - Rejected reference: confirm the branch, fetch new web edits, and inspect
@@ -100,9 +117,10 @@ an empty old folder; handle this in the editor rather than guessing a delete.
 - Missing Git menu: check entitlement or the instance's Git Bridge capability;
   ordinary CE does not acquire native Git by changing a user setting.
 - TLS/network failure: verify DNS, certificates, proxy behavior, and the
-  instance endpoint. A per-command DNS override with correct SNI may help
-  diagnose a fake-DNS proxy; avoid global proxy changes, fixed DDNS IPs, and
-  TLS bypasses.
+  instance endpoint after execution permissions are resolved. A per-command
+  DNS override with correct SNI may diagnose a fake-DNS proxy when permitted;
+  avoid global proxy changes, fixed DDNS IPs, and TLS bypasses. A first failure
+  is not a reason to replace authorized Git synchronization with browser editing.
 
 Sources checked 2026-10-07:
 
