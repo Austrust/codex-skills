@@ -110,8 +110,8 @@ Supported complete-card spec fields:
   "sourceListId": "optional source list id for title lookup",
   "moveToList": "optional target list name",
   "moveToListId": "optional target list id",
-  "completeTasks": "all or an array of exact task names",
-  "allTasks": false,
+  "completeTasks": ["Verified criterion"],
+  "evidence": {"Verified criterion": "Checked output and result"},
   "taskNames": ["optional exact task name"],
   "comment": "optional comment text",
   "commentMode": "append-once"
@@ -123,7 +123,7 @@ Behavior:
 - Resolves the card by `cardId`, or by exact `title` inside a resolved board.
 - `sourceList` narrows title lookup and avoids ambiguous same-title cards.
 - Moves the card only when `moveToList` or `moveToListId` is present.
-- Completes all checklist items with `completeTasks: "all"` or selected exact task names with `taskNames`.
+- Completes only exact names selected by `completeTasks` or `taskNames`, each backed by an `evidence` entry. Blanket completion and ambiguous names are rejected. Evidence is recorded in a comment; checklist updates precede the card move.
 - Appends comments once by default; use `commentMode: "always"` only when duplicate comments are intentional.
 - Re-fetches the card and verifies the requested move, task completion, and comment.
 - Supports `--dry-run` to show planned writes without modifying PLANKA.
@@ -135,15 +135,16 @@ Use `apply-plan` for compound operations that must run in order:
   "operations": [
     {
       "action": "complete-card",
-      "boardId": "1784117505569063970",
+      "boardId": "example-board-id",
       "title": "Old card",
       "moveToList": "已完成",
-      "completeTasks": "all",
+      "completeTasks": ["Verified criterion"],
+      "evidence": {"Verified criterion": "Checked output and result"},
       "comment": "Finished."
     },
     {
       "action": "publish-card",
-      "boardId": "1784117505569063970",
+      "boardId": "example-board-id",
       "list": "进行中",
       "title": "Next task",
       "type": "project",

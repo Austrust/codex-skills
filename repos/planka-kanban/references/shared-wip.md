@@ -1,0 +1,24 @@
+# Shared WIP policy
+
+The source of truth is one card whose name starts with `[kanban-policy:v1]`, normally `[kanban-policy:v1] WIP 规则`, in a visible 看板规则 list. Its description contains one `kanban-policy` fenced JSON block with exactly `schemaVersion: 1`, positive integer `wipLimit`, and non-empty `wipListIds` of actual board list IDs. Include all started-but-unfinished stages, including waiting/review. List IDs survive renaming. The card itself is excluded from WIP.
+
+Read:
+
+```powershell
+python scripts/planka_cli.py policy-read --board-id <boardId>
+```
+
+Create/update using a UTF-8 JSON file:
+
+```json
+{"boardId":"board-id","listId":"existing-rules-list-id","policy":{"schemaVersion":1,"wipLimit":2,"wipListIds":["doing-id","waiting-id"]}}
+```
+
+```powershell
+python scripts/planka_cli.py policy-set --file policy.json --dry-run
+python scripts/planka_cli.py policy-set --file policy.json
+```
+
+Choose limits and target boards from user intent or existing agreed rules. Two is not a default. A new card requires an existing listId; create a rules list with the normal create-list command only within the authorized board scope. Updating reuses the unique card and preserves prose outside the block. Duplicate cards or malformed rules stop the operation. No local fallback is used by to-kanban, and no automatic migration publishes old local settings.
+
+Recompile if policy or live WIP changes after preview. `apply-plan` checks this for compiled plans carrying policySource metadata; raw move/publish operations remain storage APIs. The check does not provide atomic multi-client locking. Updating rules does not move any work items. All computers need the updated skill scripts, credentials and server URL; policy data itself is read from PLANKA.

@@ -28,6 +28,7 @@ def board(cards=None):
         "included": {
             "lists": [{"id": f"list-{index}", "name": name} for index, name in enumerate(CONFIG["lists"].values())],
             "cards": cards or [],
+            "taskLists": [], "tasks": [],
         },
     }
 
@@ -35,6 +36,8 @@ def board(cards=None):
 def task(title="Implement feature", status="done", card_id=None):
     value = {
         "title": title,
+        "intent": "record",
+        "evidence": {f"{title} is reviewable": "Verified output and test result"},
         "status": status,
         "summary": f"Summary for {title}",
         "deliverable": f"Deliverable for {title}",
@@ -73,7 +76,7 @@ class CompilePlanTests(unittest.TestCase):
             [op["action"] for op in result["operations"]],
             ["complete-card", "publish-card", "publish-card"],
         )
-        self.assertEqual(result["operations"][0]["completeTasks"], "all")
+        self.assertEqual(result["operations"][0]["completeTasks"], [])
         self.assertEqual(result["operations"][0]["moveToList"], "已完成")
         self.assertEqual(result["operations"][1]["title"], "Review feature")
 
@@ -130,7 +133,7 @@ class CompilePlanTests(unittest.TestCase):
         completed_new = [
             op for op in result["operations"] if op["action"] == "complete-card" and op.get("title") == "Task A"
         ]
-        self.assertEqual(completed_new[0]["completeTasks"], "all")
+        self.assertEqual(completed_new[0]["completeTasks"], ["Task A is reviewable"])
 
     def test_normalized_match_requires_workspace_marker(self):
         summary = {

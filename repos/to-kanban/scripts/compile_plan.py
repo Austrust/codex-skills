@@ -13,10 +13,12 @@ import unicodedata
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+from shared_policy import read_board_policy, policy_cards, PolicyError
 
 
-STATUSES = ("todo", "in_progress", "blocked", "review", "done")
+STATUSES = ("inbox", "todo", "in_progress", "blocked", "review", "done")
 STATUS_LABELS = {
+    "inbox": "收集箱",
     "todo": "待办",
     "in_progress": "进行中",
     "blocked": "等待/受阻",
@@ -24,8 +26,9 @@ STATUS_LABELS = {
     "done": "已完成",
 }
 SUMMARY_KEYS = {"tasks", "primaryNextTask", "workspaceMarkers"}
-CONFIG_KEYS = {"boardId", "lists", "taskListName", "acceptanceListName"}
+CONFIG_KEYS = {"boardId", "lists", "taskListName", "acceptanceListName", "wipLimit", "wipLists", "policySource"}
 TASK_KEYS = {
+    "intent", "evidence", "dependencyEvidence",
     "title",
     "status",
     "summary",
@@ -39,6 +42,7 @@ TASK_KEYS = {
     "cardId",
 }
 NEXT_KEYS = {
+    "dependencyEvidence",
     "title",
     "relationship",
     "parentTaskTitle",
@@ -153,7 +157,13 @@ def validate_config(raw: Any, required_statuses: set[str] | None = None) -> dict
     )
     if task_list_name == acceptance_list_name:
         raise ValidationError("config.taskListName and config.acceptanceListName must be different")
+    limit = config.get("wipLimit")
+    if limit is not None and (type(limit) is not int or limit < 1):
+        raise ValidationError("config.wipLimit must be a positive integer")
     return {
+        "policySource": config.get("policySource", {"kind": "missing"}),
+        "wipLimit": limit,
+        "wipLists": unique_string_list(config.get("wipLists"), "config.wipLists"),
         "boardId": board_id,
         "lists": normalized_lists,
         "taskListName": task_list_name,
@@ -257,6 +267,9 @@ def validate_summary(raw: Any) -> dict[str, Any]:
             raise ValidationError(f"summary.tasks[{index}].status must be one of {', '.join(STATUSES)}")
         tasks.append(
             {
+                "intent": task.get("intent", "propose"),
+                "evidence": evidence_map(task.get("evidence"), "evidence"),
+                "dependencyEvidence": evidence_map(task.get("dependencyEvidence"), "dependencyEvidence"),
                 "title": title,
                 "status": status,
                 "summary": require_string(task.get("summary"), f"summary.tasks[{index}].summary"),
@@ -299,6 +312,7 @@ def validate_summary(raw: Any) -> dict[str, Any]:
 
     normalized_next = {
         "title": require_string(next_task.get("title"), "summary.primaryNextTask.title"),
+        "dependencyEvidence": evidence_map(next_task.get("dependencyEvidence"), "dependencyEvidence"),
         "relationship": relationship,
         "parentTaskTitle": parent_title,
         "summary": optional_string(next_task.get("summary"), "summary.primaryNextTask.summary"),
@@ -332,6 +346,8 @@ def bullet_section(label: str, values: list[str]) -> list[str]:
 
 
 def validate_actionable_card(item: dict[str, Any], label: str) -> None:
+    if item.get("status") == "inbox":
+        return
     if not item.get("deliverable"):
         raise ValidationError(f"{label}.deliverable is required for a new card")
     if not item.get("acceptanceCriteria"):
@@ -343,7 +359,7 @@ def work_item_description(item: dict[str, Any]) -> str:
     lines = [
         f"目标：{item.get('summary') or '未提供'}",
         "",
-        f"交付物：{item['deliverable']}",
+        f"交付物：{item.get('deliverable') or '待澄清'}",
         "",
         "前置条件：",
     ]
@@ -362,6 +378,7 @@ def task_comment(task: dict[str, Any], update_id: str, next_task: dict[str, Any]
     lines.extend(bullet_section("验收条件", task.get("acceptanceCriteria") or []))
     lines.extend(bullet_section("前置条件", task.get("dependencies") or ["无"]))
     lines.extend(bullet_section("执行步骤", task.get("steps") or []))
+    lines.extend(bullet_section("验收证据", [f"{k}: {v}" for k, v in task["evidence"].items()]))
     lines.extend(bullet_section("已完成", task["completed"]))
     lines.extend(bullet_section("产物/证据", task["artifacts"]))
     lines.extend(bullet_section("未完成/阻塞", task["openItems"]))
@@ -380,16 +397,120 @@ def card_reference(config: dict[str, Any], task: dict[str, Any]) -> dict[str, An
     }
 
 
+
+def evidence_map(value, label):
+    if value is None:
+        return {}
+    return {require_string(k, label): require_string(v, label)
+            for k, v in require_object(value, label).items()}
+
+
+def validate_flow(config, summary, board):
+    tasks = summary["tasks"]
+    policy_ids = {c["id"] for c in policy_cards(board)} if board else set()
+    cards = [c for c in board_cards(board) if c["id"] not in policy_ids] if board else []
+    included = board.get("included", {}) if board else {}
+    lists = {x["id"]: x["name"] for x in included.get("lists", [])}
+    active_names = config["wipLists"] or [config["lists"][x] for x in
+                    ("in_progress", "blocked", "review") if x in config["lists"]]
+    if any(name not in lists.values() for name in active_names):
+        raise ValidationError("wipLists must exist in the live board")
+    if config["wipLists"] and any(config["lists"][x] not in active_names for x in
+            ("in_progress", "blocked", "review") if x in config["lists"]):
+        raise ValidationError("wipLists cannot exclude mapped started states")
+    active = {c["id"] for c in cards if lists.get(c.get("listId")) in active_names}
+    before = len(active)
+    warnings = []
+    done_name = config["lists"].get("done")
+    seen_ids = set()
+    for t in tasks:
+        if t["intent"] not in ("propose", "record"):
+            raise ValidationError("intent must be propose or record")
+        if t.get("cardId"):
+            if t["cardId"] in seen_ids:
+                raise ValidationError("multiple task records target the same card")
+            seen_ids.add(t["cardId"])
+        if t["status"] == "done":
+            validate_actionable_card(t, t["title"])
+            if t.get("cardId") and (board is None or not all(isinstance(included.get(k), list) for k in ("taskLists", "tasks"))):
+                raise ValidationError("existing done requires live taskLists and tasks")
+            task_lists = {x["id"] for x in included.get("taskLists", [])
+                          if x.get("cardId") == t.get("cardId") and x.get("name") == config["acceptanceListName"]}
+            live = [x for x in included.get("tasks", []) if x.get("taskListId") in task_lists]
+            criteria = set(t["acceptanceCriteria"]) | {x["name"] for x in live}
+            if t["openItems"] or any(not t["evidence"].get(c) for c in criteria):
+                raise ValidationError(f"{t['title']}: done requires evidence for every acceptance criterion and no openItems")
+            t["_completeNames"] = [x["name"] for x in live if t["evidence"].get(x["name"])] if t.get("cardId") else t["acceptanceCriteria"]
+    next_task = summary.get("primaryNextTask")
+    if next_task and next_task["relationship"] == "continuation":
+        parent = next(t for t in tasks if t["title"] == next_task["parentTaskTitle"])
+        if parent["status"] == "done":
+            raise ValidationError("a done card cannot have an unfinished continuation")
+    # Evaluate dependencies against current live state, never a speculative future completion.
+    for t in tasks + ([dict(next_task, status="todo", intent="propose")] if next_task and next_task["relationship"] == "new" else []):
+        if t["status"] not in ("todo", "in_progress", "review"):
+            continue
+        validate_actionable_card(t, t["title"])
+        for dep in t["dependencies"]:
+            if dep == "无":
+                continue
+            matches = [c for c in cards if c["id"] == dep or c["name"] == dep]
+            satisfied = len(matches) == 1 and done_name is not None and lists.get(matches[0].get("listId")) == done_name
+            if not matches:
+                satisfied = bool(t["dependencyEvidence"].get(dep))
+            if not satisfied:
+                message = f"{t['title']}: unresolved or ambiguous dependency {dep!r}"
+                if t["intent"] == "record" and t["status"] != "todo":
+                    warnings.append(message)
+                else:
+                    raise ValidationError(message)
+    for t in tasks:
+        key = t.get("cardId") or "new:" + t["title"]
+        target_active = config["lists"][t["status"]] in active_names
+        entering = target_active and key not in active
+        if entering:
+            complete_mapping = bool(config["wipLists"]) or all(x in config["lists"] for x in ("in_progress", "blocked", "review"))
+            problem = None
+            if board is None or not complete_mapping or config["wipLimit"] is None:
+                problem = "starting work requires a live board, complete WIP mapping and configured wipLimit"
+            elif any(c.get("listId") not in lists for c in cards):
+                problem = "live cards have missing or unknown listId; WIP cannot be counted reliably"
+            elif len(active) >= config["wipLimit"]:
+                problem = f"WIP limit {config['wipLimit']} reached"
+            if problem:
+                if t["intent"] == "record":
+                    warnings.append(f"{t['title']}: {problem}")
+                else:
+                    raise ValidationError(problem)
+        if target_active:
+            active.add(key)
+        elif key in active:
+            if t["status"] != "done":
+                raise ValidationError("started work cannot be moved to inbox/todo to hide WIP")
+            active.remove(key)
+    if config["wipLimit"] and len(active) > config["wipLimit"]:
+        warnings.append("Board remains above its WIP limit; finish or unblock existing work first")
+    return {"wipBefore": before, "wipAfter": len(active), "wipLimit": config["wipLimit"],
+            "wipLists": active_names, "warnings": warnings, "policySource": config["policySource"]}
+
+
 def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None) -> dict[str, Any]:
     summary = validate_summary(summary_raw)
     required_statuses = {task["status"] for task in summary["tasks"]}
     if summary["primaryNextTask"] and summary["primaryNextTask"]["relationship"] == "new":
         required_statuses.add("todo")
-    config = validate_config(config_raw, required_statuses)
+    try:
+        remote = read_board_policy(board_raw) if board_raw is not None else {"wipLimit": None, "wipLists": [], "policySource": {"kind": "missing"}}
+    except PolicyError as exc:
+        raise ValidationError(str(exc)) from exc
+    config = validate_config({**require_object(config_raw, "config"), **remote}, required_statuses)
     board = validate_board(config, board_raw) if board_raw is not None else None
     resolved = deepcopy(summary)
     match_preview = []
-    cards = board_cards(board) if board is not None else []
+    policy_ids = {c["id"] for c in policy_cards(board)} if board else set()
+    cards = [c for c in board_cards(board) if c["id"] not in policy_ids] if board else []
+    if any(t.get("cardId") in policy_ids or t["title"].startswith("[kanban-policy:") for t in resolved["tasks"]):
+        raise ValidationError("Policy cards cannot be treated as work items")
     for task in resolved["tasks"]:
         if board is not None:
             card_id, matched_by, matched_card_title = resolve_card_id(task, cards, resolved["workspaceMarkers"])
@@ -420,6 +541,7 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
     if resolved["primaryNextTask"] and resolved["primaryNextTask"]["relationship"] == "new":
         validate_actionable_card(resolved["primaryNextTask"], "summary.primaryNextTask")
 
+    flow = validate_flow(config, resolved, board)
     update_id = stable_update_id(config, resolved)
     operations: list[dict[str, Any]] = []
     next_task = resolved["primaryNextTask"]
@@ -443,7 +565,8 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 "commentMode": "append-once",
             }
             if task["status"] == "done":
-                complete_operation["completeTasks"] = "all"
+                complete_operation["completeTasks"] = task["_completeNames"]
+                complete_operation["evidence"] = task["evidence"]
             operations.append(complete_operation)
             if continuation:
                 operations.append(
@@ -493,7 +616,8 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                         "action": "complete-card",
                         **card_reference(config, task),
                         "moveToList": target_list,
-                        "completeTasks": "all",
+                        "completeTasks": task["_completeNames"],
+                        "evidence": task["evidence"],
                         "comment": comment,
                         "commentMode": "append-once",
                     }
@@ -530,7 +654,8 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
 
     return {
         "metadata": {
-            "schemaVersion": 2,
+            "schemaVersion": 4,
+            "flow": flow,
             "updateId": update_id,
             "boardId": config["boardId"],
             "taskMatches": match_preview,

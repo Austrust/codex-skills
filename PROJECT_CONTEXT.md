@@ -1,6 +1,6 @@
 # Project Context and Handoff
 
-Updated: 2026-10-08
+Updated: 2026-10-19
 
 ## Current governance
 
@@ -34,6 +34,10 @@ mirrors preserve all old branches and tags. See
 - `to-kanban` is the conversation-facing layer over `planka-kanban`; its full
   contract is in `repos/to-kanban/SKILL.md`. Preserve dependency-first installation,
   live discovery, preview, idempotence, and post-write verification.
+- Kanban WIP rules are shared through a `[kanban-policy:v1]` card on each board.
+  Local routing memory does not override them. Both Kanban skills must be updated
+  together; see `repos/planka-kanban/references/shared-wip.md`. Inbox is capture,
+  todo is ready-to-pull, and completion requires per-criterion evidence.
 - `grill-me` installs its `grilling` dependency first.
 - Runtime state lives outside Git at `$CODEX_HOME/to-kanban/`, or `~/.codex/to-kanban/`.
 - Planka accepts `PLANKA_BASE_URL` plus an API key or username/password.
