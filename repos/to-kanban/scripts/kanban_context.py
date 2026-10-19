@@ -15,15 +15,17 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from shared_policy import read_board_policy, PolicyError
 
 
-STATUSES = ("todo", "in_progress", "blocked", "review", "done")
+STATUSES = ("inbox", "todo", "in_progress", "blocked", "review", "done")
 ROLE_TERMS = {
-    "todo": ("待办", "待处理", "任务池", "收集箱", "todo", "to do", "backlog", "inbox", "tasks"),
+    "inbox": ("收集箱", "想法池", "inbox", "backlog"),
+    "todo": ("待办", "待处理", "可拉取待办", "ready", "todo", "to do", "tasks"),
     "in_progress": ("进行中", "处理中", "执行中", "doing", "in progress", "active", "working"),
     "blocked": ("等待反馈", "等待", "受阻", "暂停", "blocked", "waiting", "on hold"),
     "review": ("待审核", "审核", "评审", "review", "checking", "qa"),
-    "done": ("已完成", "完成", "归档", "done", "complete", "completed", "finished"),
+    "done": ("已完成", "完成", "done", "complete", "completed", "finished"),
 }
 SECRET_PATTERNS = (
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE),
@@ -62,6 +64,7 @@ DEFAULT_MEMORY = {
         "snapshotMaxAgeMinutes": 15,
         "todoListAliases": [],
         "boardAliases": {},
+        "boardPolicies": {},
     },
     "workspaceRoutes": [],
     "routingHistory": [],
@@ -196,6 +199,13 @@ def build_offline_snapshot(
     }
 
 
+def shared_board_config(board):
+    try:
+        return read_board_policy(board)
+    except PolicyError as exc:
+        raise ContextError(str(exc)) from exc
+
+
 def locate_planka_cli(explicit: Path | None = None) -> Path:
     candidates = []
     if explicit:
@@ -317,7 +327,7 @@ def validate_route_input(raw: Any) -> dict[str, Any]:
     unknown = sorted(set(raw) - allowed)
     if unknown:
         raise ContextError(f"route input contains unsupported fields: {', '.join(unknown)}")
-    status = str(raw.get("status") or "todo")
+    status = str(raw.get("status") or "inbox")
     if status not in STATUSES:
         raise ContextError(f"route input status must be one of {', '.join(STATUSES)}")
     return {
@@ -444,6 +454,7 @@ def route_task(snapshot_raw: Any, memory: dict[str, Any], route_raw: Any) -> dic
                     "boardId": board_id,
                     "lists": compile_lists,
                     "taskListName": memory["preferences"].get("taskListName") or "下一步",
+                    **shared_board_config(board),
                 },
             }
         )
@@ -500,7 +511,7 @@ def select_route(snapshot: dict[str, Any], memory: dict[str, Any], raw: Any) -> 
         raise ContextError(f"selection input contains unsupported fields: {', '.join(unknown)}")
     board_id = require_string(raw.get("boardId"), "selection.boardId")
     list_id = require_string(raw.get("listId"), "selection.listId")
-    status = str(raw.get("status") or "todo")
+    status = str(raw.get("status") or "inbox")
     if status not in STATUSES:
         raise ContextError(f"selection.status must be one of {', '.join(STATUSES)}")
     board = next(
@@ -528,6 +539,7 @@ def select_route(snapshot: dict[str, Any], memory: dict[str, Any], raw: Any) -> 
             "boardId": board_id,
             "lists": list_map,
             "taskListName": memory["preferences"].get("taskListName") or "下一步",
+                    **shared_board_config(board),
         },
     }
     return {

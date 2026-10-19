@@ -7,11 +7,25 @@ description: Use for inspecting or editing PLANKA kanban boards through the REST
 
 Use the PLANKA REST API instead of browser automation. Keep credentials out of chat, logs, and files; prefer environment variables.
 
+## Workflow and evidence boundaries
+
+This skill is the API execution layer. For conversation capture, readiness, WIP and dependency decisions, use `to-kanban` and its compiler. Direct user-directed edits remain supported; before proposing a new start, read the agreed board capacity and dependencies, and apply the same checks. Do not use raw move/publish commands to bypass a failed flow check.
+
+- Distinguish inbox (unclarified/unready) from ready todo. Do not infer readiness solely from a title or manufacture missing acceptance conditions.
+- Count started work waiting for feedback or review in WIP. Record already-observed work honestly even when over capacity, reporting the violation; do not use this exception to initiate more work.
+- Completion uses explicit task names plus per-name verified `evidence`. `completeTasks: "all"` and `allTasks: true` are rejected. The CLI validates evidence coverage, not the truth of assertions; inspect artifacts or attribute explicit user confirmation before writing.
+- Read all acceptance criteria before a done move, check each against evidence, and retain review/in-progress if anything is unresolved. Execution checklists and acceptance criteria are distinct. A raw move is a storage operation and does not itself validate completion or WIP.
+- Re-read live state before applying a compiled plan. The API does not lock concurrent writers; report post-write discrepancies and stop before further starts.
+
+## Shared WIP policy
+
+Read [references/shared-wip.md](references/shared-wip.md) to configure or inspect board-owned WIP rules. Use `policy-read` and `policy-set`; do not invent a native board field. The policy card is shared through PLANKA and is not a work item. Direct start decisions must read it too. Compiled plans recheck policy/WIP before applying; this does not lock concurrent writers.
+
 ## Quick Start
 
 1. Read `references/api.md` when endpoint details, payload fields, or permission boundaries matter.
 2. Use `scripts/planka_cli.py` for common operations before hand-writing HTTP calls.
-3. Authenticate with `PLANKA_BASE_URL` plus either `PLANKA_API_KEY` or `PLANKA_USERNAME`/`PLANKA_PASSWORD`.
+3. Authenticate with `PLANKA_BASE_URL` (also accepts `PLANK_USER_BASE_URL`) plus either `PLANKA_API_KEY` or `PLANKA_USERNAME`/`PLANKA_PASSWORD`.
 4. Start with read-only discovery: projects -> board -> lists/cards -> membership role.
 5. Ask for explicit confirmation before destructive or broad writes: delete, clear, move many cards, manage users/config/webhooks, or accept terms.
 
@@ -44,7 +58,7 @@ For publishing a user note/image/chat message as a kanban task, do not hand-writ
 
 ```json
 {
-  "boardId": "1784117505569063970",
+  "boardId": "example-board-id",
   "list": "待办",
   "title": "【备忘】联系进口768及国产768厂家",
   "description": "Source and full details here.",
@@ -72,11 +86,12 @@ For finishing or advancing an existing card, use `complete-card` instead of mixi
 
 ```json
 {
-  "boardId": "1784117505569063970",
+  "boardId": "example-board-id",
   "title": "高压超声主机",
   "sourceList": "等待反馈",
   "moveToList": "已完成",
-  "completeTasks": "all",
+  "completeTasks": ["确认主机可用"],
+  "evidence": {"确认主机可用": "用户确认已借用到高压主机并可进入预实验"},
   "comment": "2026-06-02 更新：目前已借用到高压主机，进入下一阶段岩石声速/含水状态预实验。",
   "commentMode": "append-once"
 }
@@ -96,15 +111,16 @@ For a compound user intent such as "complete the old card and create the next ta
   "operations": [
     {
       "action": "complete-card",
-      "boardId": "1784117505569063970",
+      "boardId": "example-board-id",
       "title": "高压超声主机",
       "moveToList": "已完成",
-      "completeTasks": "all",
+      "completeTasks": ["确认主机可用"],
+  "evidence": {"确认主机可用": "用户确认已借用到高压主机并可进入预实验"},
       "comment": "2026-06-02 更新：目前已借用到高压主机。"
     },
     {
       "action": "publish-card",
-      "boardId": "1784117505569063970",
+      "boardId": "example-board-id",
       "list": "进行中",
       "title": "开展高压探头击穿岩石测试预实验",
       "type": "project",

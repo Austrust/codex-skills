@@ -12,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from board_policy import PolicyError, TITLE, policy_cards, read_board_policy, validate_policy, render_policy, wip_count
 
 
 SECRET_KEYS = {"password", "token", "apiKey", "api_key", "pendingToken", "Authorization"}
@@ -144,7 +145,9 @@ def decode_jwt_subject(token: str | None) -> str | None:
 
 
 def make_client() -> PlankaClient:
-    base_url = env("PLANKA_BASE_URL")
+    base_url = env("PLANKA_BASE_URL", required=False) or env("PLANK_USER_BASE_URL", required=False)
+    if not base_url:
+        raise SystemExit("Missing PLANKA_BASE_URL (or PLANK_USER_BASE_URL)")
     token = os.environ.get("PLANKA_API_KEY") or os.environ.get("PLANKA_TOKEN")
     client = PlankaClient(base_url, token)
     if not token:
@@ -817,7 +820,7 @@ def requested_tasks_to_complete(spec: dict, tasks: list[dict]):
     complete_tasks = spec.get("completeTasks")
     all_tasks = bool(spec.get("allTasks", False)) or complete_tasks == "all"
     if all_tasks:
-        return tasks
+        raise SystemExit("Blanket completion is disabled; provide completeTasks names and per-name evidence")
 
     task_names = spec.get("taskNames")
     if task_names is None and isinstance(complete_tasks, list):
@@ -825,12 +828,20 @@ def requested_tasks_to_complete(spec: dict, tasks: list[dict]):
     if task_names is None:
         return []
     if not isinstance(task_names, list) or any(not isinstance(item, str) for item in task_names):
-        raise SystemExit("taskNames or completeTasks must be a list of strings, or completeTasks must be 'all'")
+        raise SystemExit("taskNames or completeTasks must be a list of exact task-name strings")
 
     wanted = [item for item in task_names if item.strip()]
     missing = [name for name in wanted if not any(task.get("name") == name for task in tasks)]
     if missing:
         raise SystemExit(f"Requested tasks not found on card: {missing}")
+    evidence = spec.get("evidence", {})
+    if not isinstance(evidence, dict):
+        raise SystemExit("evidence must map task names to verified evidence")
+    for name in wanted:
+        if sum(task.get("name") == name for task in tasks) != 1:
+            raise SystemExit(f"Ambiguous task name: {name}")
+        if not isinstance(evidence.get(name), str) or not evidence[name].strip():
+            raise SystemExit(f"Missing completion evidence: {name}")
     return [task for task in tasks if task.get("name") in set(wanted)]
 
 
@@ -892,6 +903,10 @@ def complete_card(client: PlankaClient, spec: dict, dry_run: bool = False):
     target_list = resolve_move_target_list(snapshot, spec)
     tasks_to_complete = requested_tasks_to_complete(spec, tasks)
     comment_text = optional_string(spec, "comment") or optional_string(spec, "text")
+    if tasks_to_complete:
+        evidence_text = "Completion evidence:\n" + "\n".join(
+            f"- {task['name']}: {spec['evidence'][task['name']]}" for task in tasks_to_complete)
+        comment_text = (comment_text + "\n\n" if comment_text else "") + evidence_text
     comment_mode = optional_string(spec, "commentMode") or "append-once"
     if comment_text and comment_mode not in {"append-once", "always"}:
         raise SystemExit("commentMode must be append-once or always")
@@ -940,6 +955,17 @@ def complete_card(client: PlankaClient, spec: dict, dry_run: bool = False):
             "plannedActions": actions,
         }
 
+    changed_tasks = []
+    for task in tasks_to_complete:
+        if task.get("isCompleted"):
+            continue
+        changed = client.request(
+            "PATCH",
+            f"/api/tasks/{urllib.parse.quote(task['id'])}",
+            {"isCompleted": True},
+        )["item"]
+        changed_tasks.append(changed)
+
     moved = False
     if target_list and card.get("listId") != target_list["id"]:
         list_cards = [
@@ -957,21 +983,11 @@ def complete_card(client: PlankaClient, spec: dict, dry_run: bool = False):
         )["item"]
         moved = True
 
-    changed_tasks = []
-    for task in tasks_to_complete:
-        if task.get("isCompleted"):
-            continue
-        changed = client.request(
-            "PATCH",
-            f"/api/tasks/{urllib.parse.quote(task['id'])}",
-            {"isCompleted": True},
-        )["item"]
-        changed_tasks.append(changed)
-
     comment_result = None
     if comment_text:
         comment_spec = dict(spec)
         comment_spec["cardId"] = card["id"]
+        comment_spec["comment"] = comment_text
         comment_result = comment_card(client, comment_spec, dry_run=False)["comment"]
 
     final_card_payload = client.request("GET", f"/api/cards/{urllib.parse.quote(card['id'])}")
@@ -1005,6 +1021,19 @@ def apply_plan(client: PlankaClient, spec: dict, dry_run: bool = False):
     if not isinstance(operations, list) or not operations:
         raise SystemExit("Plan spec requires a non-empty operations array")
 
+    flow = spec.get("metadata", {}).get("flow", {})
+    expected_source = flow.get("policySource")
+    if expected_source is not None:
+        board_id = spec["metadata"]["boardId"]
+        fresh = client.request("GET", f"/api/boards/{urllib.parse.quote(board_id)}")
+        try:
+            actual = read_board_policy(fresh)
+        except PolicyError as exc:
+            raise SystemExit(str(exc)) from exc
+        if actual["policySource"] != expected_source:
+            raise SystemExit("Shared WIP policy changed; refresh, recompile and preview again")
+        if expected_source.get("kind") == "planka-card" and wip_count(fresh, expected_source) != flow["wipBefore"]:
+            raise SystemExit("Live WIP changed; refresh, recompile and preview again")
     results = []
     for index, operation in enumerate(operations):
         if not isinstance(operation, dict):
@@ -1050,6 +1079,49 @@ def apply_plan(client: PlankaClient, spec: dict, dry_run: bool = False):
         "dryRun": dry_run,
         "steps": results,
     }
+
+
+def set_board_policy(client, spec, dry_run=False):
+    board_id = require_string(spec, "boardId")
+    snapshot = client.request("GET", f"/api/boards/{urllib.parse.quote(board_id)}")
+    try:
+        policy = validate_policy(spec.get("policy"), snapshot)
+        cards = policy_cards(snapshot)
+        if len(cards) > 1:
+            raise PolicyError("Multiple policy cards; resolve duplicates before updating")
+        existing = cards[0] if cards else None
+        description = render_policy(policy, existing.get("description") or "" if existing else "")
+    except PolicyError as exc:
+        raise SystemExit(str(exc)) from exc
+    list_id = existing["listId"] if existing else require_string(spec, "listId")
+    if not any(item.get("id") == list_id for item in snapshot.get("included", {}).get("lists", [])):
+        raise SystemExit("Policy destination list must already exist on this board")
+    preview = {"boardId": board_id, "cardId": existing["id"] if existing else None,
+               "listId": list_id, "policy": policy, "description": description}
+    if dry_run:
+        return {"dryRun": True, **preview}
+    if existing:
+        client.request("PATCH", f"/api/cards/{urllib.parse.quote(existing['id'])}", {"description": description})
+    else:
+        client.request("POST", f"/api/lists/{urllib.parse.quote(list_id)}/cards",
+                       {"name": TITLE, "description": description, "type": "project", "position": 65536})
+    actual = read_board_policy(client.request("GET", f"/api/boards/{urllib.parse.quote(board_id)}"))
+    expected_ids = policy["wipListIds"]
+    if actual["wipLimit"] != policy["wipLimit"] or actual["policySource"].get("wipListIds") != expected_ids:
+        raise SystemExit("Shared policy verification failed")
+    return {"ok": True, **actual}
+
+
+def cmd_policy_read(args):
+    client = make_client()
+    try:
+        print_json(read_board_policy(client.request("GET", f"/api/boards/{urllib.parse.quote(args.board_id)}")))
+    except PolicyError as exc:
+        raise SystemExit(str(exc)) from exc
+
+
+def cmd_policy_set(args):
+    print_json(set_board_policy(make_client(), load_json_arg(args), args.dry_run))
 
 
 def cmd_whoami(args):
@@ -1179,6 +1251,15 @@ def cmd_raw(args):
 def build_parser():
     parser = argparse.ArgumentParser(description="PLANKA REST API helper")
     sub = parser.add_subparsers(required=True)
+
+    p = sub.add_parser("policy-read")
+    p.add_argument("--board-id", required=True)
+    p.set_defaults(func=cmd_policy_read)
+    p = sub.add_parser("policy-set")
+    p.add_argument("--file")
+    p.add_argument("--stdin", action="store_true")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_policy_set)
 
     p = sub.add_parser("whoami")
     p.set_defaults(func=cmd_whoami)
