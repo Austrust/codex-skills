@@ -4,6 +4,8 @@
 
 The authoritative policy is a card on the PLANKA board, titled `[kanban-policy:v1] WIP 规则`. Keep it in a visible non-work list such as 看板规则. The reader excludes this card from WIP and ordinary task matching, even if it is accidentally moved to an active list.
 
+The 看板规则 list belongs at the end of the board, to the right of every workflow stage. Create it after the work lists, or reposition it last after board bootstrap. Preserve the order of the work lists and verify the result using a fresh board read.
+
 Its description contains exactly one fenced block:
 
 ````text
