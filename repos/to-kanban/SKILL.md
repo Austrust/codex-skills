@@ -9,6 +9,8 @@ Treat this skill as the conversation-facing collection layer over `planka-kanban
 
 ## Flow policy
 
+When creating or organizing a board, put the dedicated 看板规则 list last (rightmost), after the workflow stages. Keep its configuration card out of the task flow; follow planka-kanban's shared-WIP instructions to place and verify the list.
+
 Read [references/flow-policy.md](references/flow-policy.md) before compiling a plan. It defines WIP configuration, dependency evidence, and completion evidence.
 
 - Capture incomplete ideas as `inbox`; `todo` means ready to pull, with a deliverable, acceptance criteria and satisfied dependencies. Never silently map inbox to todo or create lists without authorization.

@@ -2,6 +2,8 @@
 
 The source of truth is one card whose name starts with `[kanban-policy:v1]`, normally `[kanban-policy:v1] WIP 规则`, in a visible 看板规则 list. Its description contains one `kanban-policy` fenced JSON block with exactly `schemaVersion: 1`, positive integer `wipLimit`, and non-empty `wipListIds` of actual board list IDs. Include all started-but-unfinished stages, including waiting/review. List IDs survive renaming. The card itself is excluded from WIP.
 
+Place 看板规则 last (the rightmost named list), after all workflow stages. Create workflow lists first, then append the rules list at the maximum current named-list position plus 65536. If publishing a policy card bootstraps the board and rules list first, move that list to the end after creating the workflow stages. When organizing an existing board, preserve the relative order of its work lists and change only the rules list's position. Read a fresh board snapshot, write `{"position": <maximum + 65536>}` to a UTF-8 file, and use `planka_cli.py raw --method PATCH --path /api/lists/<rules-list-id> --file <file>`; re-fetch and verify the rules list is last. Skip the write if it is already last. Keep the policy card in this dedicated list, outside the task flow.
+
 Read:
 
 ```powershell

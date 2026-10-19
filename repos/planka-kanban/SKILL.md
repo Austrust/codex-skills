@@ -19,6 +19,8 @@ This skill is the API execution layer. For conversation capture, readiness, WIP 
 
 ## Shared WIP policy
 
+Keep the dedicated 看板规则 list last, to the right of all workflow stages. If it was created first while bootstrapping a board, move it to the end once the work lists exist; preserve work-list order and verify the final placement.
+
 Read [references/shared-wip.md](references/shared-wip.md) to configure or inspect board-owned WIP rules. Use `policy-read` and `policy-set`; do not invent a native board field. The policy card is shared through PLANKA and is not a work item. Direct start decisions must read it too. Compiled plans recheck policy/WIP before applying; this does not lock concurrent writers.
 
 ## Quick Start
