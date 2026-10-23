@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+from urllib.parse import quote
 import re
 import sys
 from dataclasses import dataclass
@@ -15,8 +17,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "index_path": "REPORT_INDEX.md",
     "updates_path": "PROJECT_UPDATES.md",
     "annotations_path": "00_project/navigation_annotations.md",
-    "task_roots": ["10_tasks"],
-    "task_pattern": "T[0-9][0-9][0-9]_*",
+    "task_roots": None,
+    "task_pattern": "*",
     "run_dir_name": "runs",
     "report_file": "REPORT.md",
     "manifest_file": "AUDIT_MANIFEST.json",
@@ -89,10 +91,14 @@ def load_config(project_root: Path, config_path: Path | None) -> dict[str, Any]:
         if not isinstance(loaded, dict):
             raise ValueError(f"Config must be a JSON object: {path}")
         config.update(loaded)
+    if config["task_roots"] is None:
+        config["task_roots"] = [name for name in ("10_tasks", "tasks") if (project_root / name).is_dir()]
     return config
 
 
 def load_annotations(project_root: Path, config: dict[str, Any]) -> dict[str, dict[str, str]]:
+    if not config.get("annotations_path"):
+        return {}
     path = project_root / config["annotations_path"]
     if not path.exists():
         return {}
@@ -270,10 +276,12 @@ def collect_project(project_root: Path, config: dict[str, Any], annotations: dic
 
             runs: list[RunEntry] = []
             runs_dir = task_dir / config["run_dir_name"]
-            if runs_dir.exists():
-                for run_dir in sorted((p for p in runs_dir.iterdir() if p.is_dir()), key=lambda p: p.name, reverse=True):
+            candidates = [task_dir]
+            if runs_dir.is_dir():
+                candidates.extend(sorted((p for p in runs_dir.iterdir() if p.is_dir()), key=lambda p: p.name, reverse=True))
+            for run_dir in candidates:
                     report_path = run_dir / config["report_file"]
-                    if not report_path.exists():
+                    if not report_path.is_file():
                         continue
 
                     run_key = relpath(run_dir, project_root)
@@ -311,26 +319,29 @@ def collect_project(project_root: Path, config: dict[str, Any], annotations: dic
 
 
 def markdown_link(label: str, target: str) -> str:
-    return f"[{label}]({target})"
+    return f"[{label}]({quote(target, safe='/.:')})"
 
 
 def build_report_index(tasks: list[TaskEntry], config: dict[str, Any], now_text: str) -> str:
+    link_base = Path(config["index_path"]).parent
+    def index_link(label: str, target: str) -> str:
+        return markdown_link(label, os.path.relpath(target, link_base).replace("\\", "/"))
     report_count = sum(len(task.runs) for task in tasks)
     task_roots = ", ".join(f"`{root}`" for root in config["task_roots"])
     lines: list[str] = [
         "# Report Index",
         "",
-        "> 自动生成的报告导航索引。不要直接手工编辑本文件；需要覆盖主题或描述时，请编辑 `00_project/navigation_annotations.md` 后重新运行 skill。",
+        "> 自动生成的报告导航索引。主题和摘要可通过可选 annotations_path 文件覆盖。",
         "",
         f"更新时间：{now_text}",
-        f"扫描范围：{task_roots} 下的 `{config['run_dir_name']}/*/{config['report_file']}`",
+        f"扫描范围：{task_roots} 的任务直属报告及 `{config['run_dir_name']}/*/{config['report_file']}`",
         f"任务包数量：{len(tasks)}",
         f"报告数量：{report_count}",
         "",
         "## 使用说明",
         "",
-        "- `T###` 是长期科研主题包。",
-        "- `runs/YYYYMMDD_label` 是该主题下的一次具体执行、审计或报告包。",
+        "- 按现有科研任务分组，保留任务名称。",
+        "- 报告可直接位于任务目录，也可位于现有 run 目录；不要求日期或编号。",
         "- 每个 run 只暴露主题、简要描述、状态、报告链接和相关链接，避免把索引变成第二份报告。",
         "",
         "## 任务报告",
@@ -343,7 +354,7 @@ def build_report_index(tasks: list[TaskEntry], config: dict[str, Any], now_text:
                 f"## {task.name}",
                 "",
                 f"主题：{task.topic}",
-                f"任务入口：{markdown_link(task.rel_path, task.rel_path + '/')}",
+                f"任务入口：{index_link(task.rel_path, task.rel_path + '/')}",
                 "",
             ]
         )
@@ -353,7 +364,7 @@ def build_report_index(tasks: list[TaskEntry], config: dict[str, Any], now_text:
             continue
 
         for run in task.runs:
-            related = " / ".join(markdown_link(label, target) for label, target in run.related_links)
+            related = " / ".join(index_link(label, target) for label, target in run.related_links)
             lines.extend(
                 [
                     f"### {run.name}",
@@ -364,7 +375,7 @@ def build_report_index(tasks: list[TaskEntry], config: dict[str, Any], now_text:
             )
             if run.status:
                 lines.append(f"状态：{run.status}")
-            lines.append(f"报告链接：{markdown_link('REPORT.md', run.report_rel_path)}")
+            lines.append(f"报告链接：{index_link(config['report_file'], run.report_rel_path)}")
             if related:
                 lines.append(f"相关链接：{related}")
             lines.append("")
@@ -388,7 +399,7 @@ def append_update_log(
             [
                 "# Project Updates",
                 "",
-                "> 每个 agent 回合追加一条批次记录。这里记录人类可读的语义摘要，不替代 git diff 或 REPORT.md。",
+                "> 按需追加的报告索引更新记录。",
             ]
         )
 
@@ -429,6 +440,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Refresh a task-based research report index.")
     parser.add_argument("--project-root", default=".", help="Project root directory.")
     parser.add_argument("--config", default=None, help="Optional config JSON path.")
+    parser.add_argument("--task-root", action="append", help="Parent containing task folders; repeatable.")
+    parser.add_argument("--run-dir-name", help="Existing run-container name.")
+    parser.add_argument("--report-file", help="Existing report filename.")
+    parser.add_argument("--index-path", help="Project-relative generated index destination.")
     parser.add_argument("--update-summary", default="", help="Human-readable summary for PROJECT_UPDATES.md.")
     parser.add_argument("--changed-path", action="append", default=[], help="Path affected by this agent turn. Can be repeated.")
     return parser.parse_args(argv)
@@ -439,13 +454,21 @@ def main(argv: list[str]) -> int:
     project_root = Path(args.project_root).resolve()
     config_path = Path(args.config).resolve() if args.config else None
     config = load_config(project_root, config_path)
+    for key in ("run_dir_name", "report_file", "index_path"):
+        if getattr(args, key):
+            config[key] = getattr(args, key)
+    if args.task_root:
+        config["task_roots"] = args.task_root
+    if not config["task_roots"]:
+        raise SystemExit("No task roots identified. Pass --task-root or configure task_roots; no files written.")
     annotations = load_annotations(project_root, config)
     tasks = collect_project(project_root, config, annotations)
 
     now_text = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
     index_text = build_report_index(tasks, config, now_text)
     write_text(project_root / config["index_path"], index_text)
-    append_update_log(project_root, config, now_text, args.update_summary, args.changed_path, tasks)
+    if args.update_summary and config.get("updates_path"):
+        append_update_log(project_root, config, now_text, args.update_summary, args.changed_path, tasks)
 
     report_count = sum(len(task.runs) for task in tasks)
     print(json.dumps({"tasks": len(tasks), "reports": report_count, "index_path": config["index_path"]}, ensure_ascii=False))

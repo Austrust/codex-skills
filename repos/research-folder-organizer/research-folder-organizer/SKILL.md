@@ -1,143 +1,36 @@
 ---
 name: research-folder-organizer
-description: Audit and safely organize research project folders around task packages so they are readable for humans and navigable for agents. Use when the user asks to整理科研项目文件夹, make one concrete research task one folder, archive old research materials, create initial README/Wiki/index files during organization, or plan safe cleanup batches. For routine README index maintenance, use research-readme-index instead.
+description: Organize research folders locally around concrete research tasks, preserving useful existing structure. Use for grouping scattered task materials, archiving superseded work, or requested project restructuring. For routine README-only upkeep, use research-readme-index.
 ---
 
 # Research Folder Organizer
 
-## Purpose
+Make research materials easy to find and understand. Default to local organization within the requested scope; keep the files answering one research question together.
 
-Use this skill for research project folders, not generic Downloads cleanup. The goal is to make project material easier to find, cite, maintain, and hand off while preserving evidence history.
+## Organizing Principles
 
-Default organizing principle: one concrete research task gets one task package. Avoid using broad material buckets such as "figures", "scripts", "current mining", or "paper materials" as the main long-term structure when the work is really a data-processing or evidence-building task.
+- Preserve useful existing names and structure. Group scripts, tables, figures, notes, and reports by the research task they serve, not merely by file type.
+- Introduce a task folder only when it clarifies ownership. Task IDs, numbered top-level areas, dates, and standard subfolders are optional; create folders only for material that exists or is immediately needed.
+- Keep shared methods and references outside individual tasks only when they actually serve multiple tasks. Manuscripts and presentations consume analysis results; keep the analysis with its task.
+- Reference shared raw inputs instead of copying them. Record source paths and relevant versions in the task README; use a separate input manifest only when the dependency detail warrants it.
 
-Default stance: audit first, propose batches second, mutate only after explicit user approval. Never delete by default.
+## Default: Local Organization
 
-## Workflow
+1. Read applicable project instructions and the nearest README. Use user-specified paths; otherwise use the current change set or clearly identified task area. If no scope can be inferred, ask for the target. Start with one or two directory levels and inspect deeper only as needed. Do not run a project-wide inventory by default.
+2. Identify the concrete problem and the smallest useful change. Inspect task context and path references before moving code, notebooks, or their inputs. An unclear filename or old modification date alone does not establish that material is obsolete.
+3. Briefly describe meaningful moves as old path → new path, then carry out clear, reversible changes covered by the user's request. A request for advice or an audit authorizes recommendations, not moves. Existing authorization carries forward: do not ask again for every folder, README edit, or execution batch.
+4. Maintain affected README navigation using research-readme-index. Preserve language and style; parents index direct children only. Explain purpose, status, main inputs, key outputs, and the next reading entry without duplicating reports.
+5. Verify moved destinations, affected links, and known path dependencies. Use focused checks appropriate to the changes; report anything not verified. Summarize what changed and any unresolved decisions.
 
-1. **Ground in the project**
-   - Read local instructions first: `AGENTS.md`, `README*`, `项目Wiki.md`, `ProjectWiki.md`, and `.gitignore`.
-   - Check whether the folder is a Git repo with `git status --short`.
+## Boundaries
 
-2. **Run a read-only inventory**
-   - Use `scripts/inventory.py --root <project> --dry-run --format both`.
-   - Respect project Python rules. If `AGENTS.md` requires `.venv`, use that interpreter.
-   - Write dry-run output to `<project>/_organizer/` unless the user asked for another location.
+- Do not delete or overwrite by default. Ask only when a consequential action remains unauthorized, ownership is ambiguous, or a dependency risk cannot be resolved by inspection. Group unresolved questions and continue independent authorized work.
+- Protect raw data, scientific stores, environment directories, Git metadata, and unfamiliar generated-tool outputs. Leave data and notebooks with unresolved path dependencies in place; link to them instead.
+- Preserve unrelated work. Check Git status before and after changes when in a repository; staging and committing are outside ordinary organization unless requested.
+- Archive confirmed superseded material using the existing archive convention. Do not consolidate historical archives just for uniformity.
+- README is the default navigation artifact. Do not automatically create a separate Wiki, task registry, input manifest, inventory report, or execution log. Add one only when requested or when the scale of the authorized work makes its distinct purpose necessary.
+- Do not create READMEs for caches, temporary folders, generated image folders, outputs/intermediate/, or one-off script outputs.
 
-3. **Classify by evidence lifecycle**
-   - `current_mainline`: current manuscript, active analysis, current project entrypoints.
-   - `supporting_evidence`: validation packages, figures, tables, source reports, reproducibility notes.
-   - `reproducible_output`: build output, generated figures, exported reports that can be regenerated.
-   - `archive_candidate`: superseded drafts, old exploratory runs, stale copies, replaced exports.
-   - `protected_data`: raw data, large scientific stores, virtual environments, Git metadata, unknown generated-tool outputs, and media captures.
-   - `cache_or_temp`: caches, temporary folders, build artifacts, editor state.
+## Optional: Full Restructuring
 
-4. **Plan task packages before moves**
-   - Prefer a project layout like:
-
-     ```text
-     00_project/          # project-level indexes, task registry, governance
-     01_sources/          # raw data/models and immutable inputs, indexed not copied
-     10_tasks/            # one concrete task per package
-     20_methods/          # reusable methods, shared workflows, common scripts
-     30_literature/       # papers, literature audits, novelty-gap material
-     40_reference/        # external specs, manuals, standards, symbol tables
-     50_reports/          # internal reports and stage summaries
-     70_manuscript/       # manuscript-facing final text, tables, and figures
-     80_presentations/    # PPT, web/video presentations, talk scripts
-     90_archive/          # retired task packages and historical archives
-     _organizer/          # organizer reports and execution records
-     ```
-
-   - Use stable task names: `T001_uiv_processing`, `T002_comsol_uiv_comparison`, `T003_deep_exchange_reachability`.
-   - Put dates in run folders or report filenames, not in the task identity unless the date is the scientific object.
-   - Do not copy raw data into every task package. Put source paths, versions, filters, and fields in `inputs/manifest.md`.
-   - Keep manuscript and presentation folders as consumers of task outputs, not as the home of the analysis process.
-   - Use `20_methods/`, `30_literature/`, `40_reference/`, and `50_reports/` only for cross-task material. If a file exists mainly to answer one concrete research question, keep it in that task package instead.
-
-5. **Use a standard task package shape**
-   - Each task package should be independently understandable and reproducible:
-
-     ```text
-     T###_short_slug/
-     ├── README.md
-     ├── inputs/
-     │   └── manifest.md
-     ├── scripts/
-     ├── outputs/
-     │   ├── tables/
-     │   ├── figures/
-     │   ├── reports/
-     │   └── intermediate/
-     ├── runs/
-     │   └── YYYYMMDD_label/
-     ├── notes/
-     └── _archive/
-     ```
-
-   - `README.md` must answer: why this task exists, what inputs it uses, how to run it, what it outputs, and what downstream manuscript/report consumes it.
-   - `README.md` is the canonical task-level human index. It must explain the task and each `runs/*` folder in low-context prose: assume the reader knows only the broad project topic, not the local abbreviations, past decisions, or evidence chain.
-   - `outputs/intermediate/` is for useful-but-not-final reproducible artifacts; cache-only material stays out of task outputs.
-   - A task package may link to another task package output, but must record that dependency in `inputs/manifest.md`.
-
-6. **Create initial task README run indexes**
-   - Every `T###_short_slug/README.md` should include:
-     - Task purpose in plain language.
-     - Minimal background needed to understand why the task exists.
-     - Main inputs and where they come from.
-     - Main scripts or commands, if the task is reproducible.
-     - Main outputs and how downstream manuscript/report work uses them.
-     - A run index covering every `runs/YYYYMMDD_label/` folder.
-   - Each run entry should give a short, self-contained explanation: what was done, why it was done, what evidence or artifact came out, current status/confidence if known, and the report path.
-   - Do not write run summaries as private shorthand such as "rerun official data" unless the README also explains what "official data" means in that task context.
-   - Prefer concise paragraphs or tables over long duplicated report text. The README routes readers to reports; it does not replace them.
-   - For routine maintenance of existing README indexes after ordinary work, use `research-readme-index`.
-
-7. **Propose batches, do not silently execute**
-   - Batch proposals should separate: task README/run-index updates, other entrypoint/index updates, archive moves, duplicate reports, cache cleanup, and Git staging/commit.
-   - Ask for approval by batch before moving, editing, installing dependencies, staging, or committing.
-   - New archive moves go to `_archive/YYYY-MM-DD_description/`.
-   - Existing archives such as `99_旧版归档_*` are not migrated automatically; suggest consolidation only in the report.
-
-8. **Make human and agent entrypoints**
-   - Keep existing project README/Wiki intact unless the user approves edits.
-   - Create a separate organizer wiki when approved: `整理Wiki.md` for Chinese-dominant projects, `OrganizationWiki.md` for English-dominant projects.
-   - Maintain a task registry when using task packages. It should map task id, task slug, purpose, owner/status if known, source inputs, key outputs, and downstream consumers.
-   - Treat task package README files as the first detailed landing pages for humans and agents after the project-level registry.
-   - Prefer relative links in generated project documentation.
-   - Keep `_organizer/` as the home for inventories, dry-run reports, proposed batches, and execution records.
-
-## Safety Rules
-
-- Default to no deletion. Duplicate files are report-only unless the user explicitly approves removal in a later task.
-- Protect paths from project config first. If config is missing, conservatively protect `.git/`, `.venv/`, `venv/`, `env/`, `dataset*/`, unknown generated-tool output directories, Zarr stores, scientific arrays, HDF5/NetCDF/MAT files, raw media, and build caches.
-- Do not move raw data or notebooks with unknown relative paths during the first pass.
-- Do not split a coherent task package by file type. If a script, table, figure, and report exist to answer the same research question, keep them together under that task.
-- Do not mix unrelated dirty worktree changes into organizer commits.
-- If a dependency is missing, report it and ask before installing into the project environment.
-
-## Git
-
-- Always record pre/post `git status --short` when inside a Git repo.
-- If committing is approved, stage only organizer-created or organizer-moved files for that batch.
-- Do not update, regenerate, or stage unknown generated-tool outputs as part of this skill.
-
-## Script
-
-Run the bundled inventory script:
-
-```powershell
-python $env:USERPROFILE\.codex\skills\research-folder-organizer\scripts\inventory.py --root . --dry-run --format both
-```
-
-For projects that require a local venv:
-
-```powershell
-.\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-folder-organizer\scripts\inventory.py --root . --dry-run --format both
-```
-
-The script writes:
-
-- `_organizer/inventory.json`
-- `_organizer/inventory_report.md`
-- `_organizer/proposed_batches.md`
+Read [references/full-restructure.md](references/full-restructure.md) only when the user requests project-wide auditing, initialization, or restructuring. Local messiness does not itself authorize a full migration. The inventory script is an optional reporting tool for that mode, not a prerequisite for ordinary organization.

@@ -1,34 +1,18 @@
 # research-report-index
 
-Codex skill for generating a lightweight `REPORT_INDEX.md` in task-based research projects.
-
-The first version scans `10_tasks/*/runs/*/REPORT.md`, groups reports by `T###` task package, and exposes each run with:
-
-- topic
-- short summary
-- audit/reproducibility/confidence status when available
-- `REPORT.md` link
-- related links such as `AUDIT_MANIFEST.json`, `FIGURE_INDEX.md`, and `COMMAND_LOG.md`
+Maintain report navigation in the existing project layout. Use local edits for small or hand-maintained indexes; the optional generator groups reports by task without requiring numbered task names or dated runs.
 
 ## Files
 
-- `SKILL.md` - Codex skill instructions.
-- `scripts/update_report_index.py` - deterministic report-index generator.
+- [SKILL.md](SKILL.md): workflow, supported layouts, optional configuration, and legacy compatibility.
+- [scripts/update_report_index.py](scripts/update_report_index.py): full regeneration of a configured report index.
 
-## Typical Project Setup
+## Usage
 
-```text
-00_project/dashboard_config.json
-00_project/navigation_annotations.md
-REPORT_INDEX.md
-PROJECT_UPDATES.md
-```
+With the project's Python, resolve the script from this installed skill directory:
 
-Run from a project root:
+    python <skill-directory>/scripts/update_report_index.py --project-root <project> --task-root analyses
 
-```powershell
-.\.venv\Scripts\python.exe 00_project\skills\research-report-index\scripts\update_report_index.py `
-  --project-root . `
-  --update-summary "刷新报告导航索引。"
-```
+Inputs are existing task reports, optional annotations, and optional manifests. Output defaults to REPORT_INDEX.md. Direct task reports and reports under a configurable run container are supported.
 
+Existing 00_project/dashboard_config.json settings remain valid. Without configuration, existing 10_tasks and tasks roots are recognized; other roots are supplied explicitly. No setup files or directories are required. Update logging occurs only with --update-summary. See SKILL.md for configuration and naming overrides.

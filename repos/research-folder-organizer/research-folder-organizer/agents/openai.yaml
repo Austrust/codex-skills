@@ -1,7 +1,7 @@
 interface:
   display_name: "Research Folder Organizer"
-  short_description: "Audit and organize research folders safely"
-  default_prompt: "Use $research-folder-organizer to audit this research folder and propose one-task-one-package organization."
+  short_description: "Organize research tasks with minimal local changes"
+  default_prompt: "Use $research-folder-organizer to organize this research folder locally, keeping related task materials together and updating affected README navigation."
 
 policy:
   allow_implicit_invocation: true

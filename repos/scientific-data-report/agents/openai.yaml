@@ -1,7 +1,6 @@
 interface:
   display_name: "Scientific Data Report"
-  short_description: "Reader-oriented, auditable scientific data-processing reports"
-  default_prompt: "Use $scientific-data-report to process scientific data and deliver an auditable report package."
-
+  short_description: "Concise scientific reports with optional audit records"
+  default_prompt: "Use $scientific-data-report to summarize results, useful outputs, essential checks, and rerun instructions."
 policy:
   allow_implicit_invocation: true

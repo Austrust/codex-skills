@@ -1,325 +1,75 @@
 ---
 name: scientific-data-report
-description: Use when processing scientific data or reporting scientific data-processing work, especially when the user needs an auditable report package with provenance, commands, parameters, input fingerprints, output lineage, QC checks, scientific assumptions, risks, reproducibility status, and claims boundaries.
+description: Write concise scientific processing reports with useful outputs, essential methods, checks, and rerun instructions. Add structured audit records when needed for handoff; answer bounded data questions inline.
 ---
 
 # Scientific Data Report
 
-Use this skill for any scientific data processing task where results may support figures, tables, reports, manuscripts, decisions, or later review. The output is a data-processing report package, not just prose.
+Help readers understand the result, judge whether it is usable, and repeat important work. Each artifact should support a result, decision, rerun, or real review need.
 
-## Core Rule
+## Delivery size
 
-Deliver an auditable package that lets the user check what was done, why it was scientifically defensible, what evidence proves it was executed, and what remains uncertain.
+- **Inline:** bounded question, quick inspection, or explanation of existing results. Answer with decisive evidence; do not create a package solely because scientific data is involved.
+- **Lean (default for saved work):** An existing report entrypoint (REPORT.md for new helper-created packages) plus actual useful data, figures, tables, or code. Keep essential provenance, commands, and QC in the report or link existing authoritative records. No mandatory sidecars or empty directories.
+- **Audited:** add AUDIT_MANIFEST.json when requested, required by the project, or needed for complex lineage and handoff. Read [references/audited.md](references/audited.md). Manuscript use increases verification requirements; it does not automatically require extra documents.
 
-Never blur missing provenance. If key information is unavailable, stop, ask, or downgrade the report status.
+Processing mode is independent of delivery size: exploratory for provisional analysis, formal for conclusion-supporting results, repair for a defect and its verification, reproduce for a rerun with deviations recorded.
 
-## Reader Orientation Rule
+## Workflow
 
-Default `REPORT.md` is a reader-first processing summary, not the full audit record. It must be self-contained for a reader who knows only the broad project topic, not the run-internal folder scan, script names, step IDs, abbreviations, or prior agent context.
+1. Identify the question, intended use, inputs, and existing rerun entrypoints. Inspect only the needed scope.
+2. Resolve consequential scientific choices. A plan in the conversation or report is usually enough. Create PROCESSING_PLAN.md only for a complex reviewable plan or explicit project requirement. Honor prior authorization; do not stop just because the mode is formal. Ask about unresolved consequential choices or an explicit approval gate not already satisfied.
+3. Execute authorized processing, preserve raw data, and run relevant checks.
+4. Write the result first. Reuse existing code, environments, logs, and data paths instead of copying them.
+5. Check output links and reported numbers, inspect figures, and remove template text. Maintain owning README navigation for new stable runs according to research-readme-index; do not duplicate REPORT.md in a run README.
 
-Keep orientation small but explicit. At the top of `REPORT.md`, give only the few context facts needed to understand the processing flow:
+## Report content
 
-- the project/problem in one sentence;
-- the concrete dataset/input family in one sentence;
-- the processing goal in one sentence;
-- definitions for any IDs, abbreviations, variables, or labels reused in the report.
+Use the project's language and style. Routine reports should usually fit one or two screens before figures; expand when needed. These are content requirements, not mandatory headings or tables:
 
-Do not flood the report with background, but never drop unexplained internal context into it. In `REPORT.md`, do not mention a file, variable, parameter, task slug, figure ID, step ID, abbreviation, method label, or prior result without either defining it in the orientation section or making its meaning obvious in the same row/sentence.
+- Result and context: question, data family, key finding with units, and processing status. Explain unfamiliar terms where first used.
+- Useful outputs: link deliverables readers will use and explain their purpose. Include decisive figures with readable axes, units, and concise captions. Link existing figures without copying them.
+- Method and evidence: input paths/version, selections, transformations, consequential parameters and their basis; distinguish current execution, existing results, and inferred behavior. Explain lineage in plain language without mandatory artificial step IDs.
+- Checks and limitations: actual checks and outcomes (sample counts, missingness, units, fit residuals, threshold sensitivity). State limitations affecting interpretation. No fixed quota of review targets or boilerplate lists of unsupported claims.
+- Reproduction: working directory, command or manual procedure, code revision/hash, relevant environment or links to existing records, and missing rerun prerequisites.
 
-Avoid context cliffs: bare path lists, unexplained filenames, unexplained folder-derived facts, unexplained acronyms, and statements that assume the reader has read the source scripts, manuscript, or previous reports. Use plain-language labels next to technical IDs. Put detailed provenance, fingerprints, environment details, full QC surfaces, and expanded figure metadata in `AUDIT_MANIFEST.json`, `COMMAND_LOG.md`, `QC_CHECKLIST.md`, and `FIGURE_INDEX.md`; `REPORT.md` should summarize and link to those files.
+Keep these concise fields near the top for navigation compatibility:
 
-## Project Configuration
+    Audit status: complete | partial | blocked | exploratory
+    Reproducibility: reproducible | partially_reproducible | not_reproducible | not_assessed
 
-Before creating or revising a report package, look for this file under the project root:
+Complete means the declared processing scope and essential checks are complete, with retraceable inputs and a usable rerun procedure; it does not certify scientific truth. Use partial for material evidence gaps and blocked when the intended result cannot be produced. Scientific confidence is optional; explain its basis if used.
 
-```text
-00_project/scientific_data_report_config.json
-```
+## Essential evidence
 
-If it exists, load it and follow it before applying generic defaults. Supported configuration keys include:
+- Keep raw data read-only unless explicitly authorized. Keep new results distinguishable from prior results using the existing project convention; create a new run only when it adds needed version separation. Edit existing reports in place when requested. Never silently overwrite results or delete old artifacts as part of simplification.
+- Identify conclusion-bearing inputs by stable dataset version or hash. For large inputs use an inexpensive documented fallback (size/mtime plus metadata or sampled hashes), noting its weaker guarantees. Reuse trustworthy fingerprints. Quick inline inspections need not hash entire datasets.
+- Record relevant metadata: units, shape, selected channels/groups, coordinates, calibration, sampling, missing-data policy. Missing critical metadata restricts affected claims; unrelated unknowns do not block all work.
+- Distinguish executed_this_session, existing_file, inferred_from_code, user_provided, and gui_manual evidence. Never infer execution from file presence. Unknown evidence cannot support a verified claim.
+- Preserve parameters and code/environment identity for reruns. Manual work needs sufficient actions/settings; assess whether it can actually be repeated.
+- Check choices affecting values, sample membership, statistics, or visual interpretation. Formal claims need relevant assumptions, uncertainty, and sensitivity checks. Do not invent unrelated plots or tests.
+- Separate measured results from mechanism or causal interpretation. Put necessary qualifications next to affected claims.
 
-- `default_language`: `zh`, `en`, or `auto`. Use this for all user-facing report documents unless the user explicitly asks otherwise.
-- `report_style.context_policy`: default `minimal_but_self_contained`; keep `REPORT.md` concise but never context-broken.
-- `report_style.technical_id_policy`: require plain-language labels beside technical IDs, filenames, variables, step IDs, and output IDs.
-- `report_style.figure_caption_detail`: use compact captions in `REPORT.md` and complete captions in `FIGURE_INDEX.md`.
-- `workflow.formal_requires_plan_confirmation`: whether formal mode must stop after `PROCESSING_PLAN.md` unless preapproved.
-- `workflow.prefer_task_package_runs`: whether task packages should be preferred for placement.
+## Optional files, placement, and configuration
 
-If `00_project/` exists but the config file is missing, generate it before creating new report packages. If `00_project/` is missing, run the config wizard to create `00_project/` and the config file. Use the helper script when possible:
+Create COMMAND_LOG.md only for useful execution history beyond a reproduction block; QC_CHECKLIST.md for substantial independent review; FIGURE_INDEX.md for a collection needing navigation. Store each detailed fact once and link to it. Create outputs/, figures/, tables/, and logs/ only when they contain useful artifacts. Preserve intermediates needed for interpretation or reruns; do not generate speculative extras.
 
-```bash
-python <skill_dir>/scripts/init_report_package.py --root . --init-config
-```
+Follow established report locations and filenames; no fixed task prefix, run container, or date naming is required. Use an existing task/report area before introducing a new directory. A short report can live directly in the task. The initializer's timestamped layout is an optional convenience, not a project requirement. No project-wide restructuring.
 
-Wizard defaults should be conservative: `default_language=zh` for Chinese-language research projects, `context_policy=minimal_but_self_contained`, `technical_id_policy=technical_ids_must_have_plain_language_labels`, `formal_requires_plan_confirmation=true`, and `prefer_task_package_runs=true`. Ask only when the answer is genuinely project-specific; otherwise write the default and let the user edit the JSON later.
+Use --config <path> for existing configuration elsewhere; otherwise load 00_project/scientific_data_report_config.json if present; never create it automatically. Respect language and explicit workflow gates. Legacy required_files/required_dirs generated by the old skill are layout hints, not reasons to recreate empty scaffolding; explicit project instructions still apply. New report_package.profile is lean or audited; explicit --profile overrides it. Configuration creation is opt-in via --init-config.
 
-## Required Package
+## Helpers
 
-Package placement:
+Use the initializer only for a new saved report:
 
-1. If the project follows the `research-folder-organizer` task-package layout and this work belongs to one concrete task, place the report package under that task:
+    python <skill_dir>/scripts/init_report_package.py --root . --task "analysis title" --mode exploratory
+    python <skill_dir>/scripts/init_report_package.py --root . --task "analysis title" --task-package analyses/flow --mode formal --profile audited
+    python <skill_dir>/scripts/validate_report_package.py <package_dir>
 
-   ```text
-   <project_root>/10_tasks/T###_short_slug/runs/YYYYMMDD_HHMMSS_<task_slug>/
-   ```
+Use --package-dir analyses/flow/baseline for an exact new destination without a timestamp, or --run-dir-name experiments with --task-package. Relative placement/config paths are resolved from --root. Exact destinations must not already exist; update existing reports directly instead. The helper creates only REPORT.md for lean or REPORT.md plus AUDIT_MANIFEST.json for audited. It does not mandate these names for existing projects.
 
-2. If the output is a cross-task stage summary, reviewer-facing report, or project-level audit, place it under:
+The bundled validator targets helper-style packages. Check existing differently named reports in place against the content and evidence requirements; do not rename reports or create sidecars merely to satisfy this validator. Schema 1 checks describe the historical package contract, not mandatory files for new work; report legacy gaps without inventing missing records.
 
-   ```text
-   <project_root>/50_reports/YYYYMMDD_HHMMSS_<task_slug>/
-   ```
+Use --allow-draft only for unfinished scaffolds. Validation checks structure and recorded consistency; manually verify numerical correctness, interpretation, and actual execution. Schema 1 manifests remain readable; do not bulk-migrate old reports.
 
-3. If no project structure is known, use:
-
-```text
-<project_root>/data_processing_reports/YYYYMMDD_HHMMSS_<task_slug>/
-```
-
-If a project has any other established reports/runs structure, follow it. Always record the chosen path in `AUDIT_MANIFEST.json`.
-
-Required files:
-
-```text
-PROCESSING_PLAN.md
-REPORT.md
-AUDIT_MANIFEST.json
-COMMAND_LOG.md
-QC_CHECKLIST.md
-FIGURE_INDEX.md
-outputs/
-figures/
-tables/
-logs/
-```
-
-`AUDIT_MANIFEST.json` is the machine-readable source of truth. YAML is optional.
-
-## Helper Scripts
-
-Create or refresh the project-level config when needed:
-
-```bash
-python <skill_dir>/scripts/init_report_package.py --root . --init-config
-```
-
-Create a package with:
-
-```bash
-python <skill_dir>/scripts/init_report_package.py --root . --task "short task title" --mode exploratory
-```
-
-For a known task package:
-
-```bash
-python <skill_dir>/scripts/init_report_package.py --root . --task "short task title" --task-package 10_tasks/T012_some_task --mode formal
-```
-
-For a cross-task report:
-
-```bash
-python <skill_dir>/scripts/init_report_package.py --root . --task "short task title" --cross-task-report --mode formal
-```
-
-Use `--mode formal` for manuscript, final figure, final table, or conclusion-supporting work.
-
-Validate before final delivery with:
-
-```bash
-python <skill_dir>/scripts/validate_report_package.py <package_dir>
-```
-
-For a freshly initialized empty template only:
-
-```bash
-python <skill_dir>/scripts/validate_report_package.py <package_dir> --allow-draft
-```
-
-If a script cannot run, create the same structure manually and record the failure in `COMMAND_LOG.md`.
-
-## Processing Modes
-
-- `formal`: final/report/manuscript/conclusion-supporting processing. Write `PROCESSING_PLAN.md` first and wait for user confirmation before executing, unless the user explicitly preapproved execution.
-- `exploratory`: exploratory analysis may proceed without waiting, but `audit_status` must be `exploratory` and conclusions must stay provisional.
-- `repair`: fix or patch an existing data-processing workflow. Record the defect, changed code, and verification.
-- `reproduce`: rerun or verify an existing workflow. Record exact reproduction scope and deviations.
-
-If the user says to directly process and report, still write `PROCESSING_PLAN.md` and set `plan.user_preapproved = true`.
-
-## Hard Constraints
-
-- Treat raw data as read-only. Do not modify, move, rename, delete, or overwrite original data unless the user explicitly authorizes it.
-- Never silently overwrite outputs. Use a new timestamped run directory if output paths already exist.
-- Separate executed evidence from inferred descriptions.
-- Existing output files are `existing_file`, not `executed_this_session`.
-- If a step is inferred from code or filenames, label it `inferred_from_code`.
-- If provenance, metadata, units, scale, sampling, code version, parameters, or execution evidence are missing, block or downgrade.
-- For non-scripted work such as GUI, Excel, Origin, MATLAB interactive work, COMSOL GUI, or notebooks, capture configuration, screenshots/exports when relevant, file fingerprints, and exact manual steps. Reproducibility is at most `partially_reproducible` unless the workflow can be rerun deterministically.
-
-## Required Status Fields
-
-Set these near the top of `REPORT.md` and in `AUDIT_MANIFEST.json`:
-
-```text
-Audit status: complete | partial | blocked | exploratory
-Reproducibility: reproducible | partially_reproducible | not_reproducible | not_assessed
-Scientific confidence: high | medium | low | not_assessed
-```
-
-`complete` requires reproducible outputs, complete provenance, complete input fingerprints or documented fallback fingerprints, no unresolved blockers, and no unknown critical fields.
-
-## Plan Before Processing
-
-`PROCESSING_PLAN.md` must state:
-
-- Objective and whether the work is `formal`, `exploratory`, `repair`, or `reproduce`.
-- Raw inputs to be used and expected metadata.
-- Planned steps, algorithms, thresholds, filters, fitting/statistics, unit conversions, and visualization choices.
-- Method basis for each key choice: user instruction, paper, instrument metadata, code default, domain convention, or exploratory judgment.
-- Expected outputs and review checkpoints.
-- What would block or downgrade the result.
-
-For `formal` work, stop after writing the plan until the user confirms.
-
-## What Counts As A Key Step
-
-Any operation that can affect data values, sample membership, coordinates, units, time interpretation, statistics, visual interpretation, or claims is a key step.
-
-Key steps include:
-
-- Reading, conversion, channel/variable selection.
-- Sample filtering, region/time cropping, bad-point or outlier removal.
-- Unit conversion, coordinate transformation, calibration, normalization, nondimensionalization.
-- Filtering, smoothing, interpolation, resampling, registration, denoising.
-- Fitting, statistical testing, error estimation, uncertainty propagation.
-- Parameter or threshold choice, including defaults.
-- Aggregation or post-processing that affects figures, tables, or core values.
-- Visualization choices that affect interpretation: color limits, axis truncation, log scales, normalized display.
-
-Every key step must appear in `AUDIT_MANIFEST.json` with:
-
-```text
-method_basis
-assumptions
-risks
-verification
-```
-
-Non-key operational steps may be summarized in `COMMAND_LOG.md`.
-
-## Provenance Requirements
-
-Each important input must record:
-
-- Path and role.
-- Whether it existed at runtime.
-- Size and modified time when available.
-- Full SHA256 for small/medium files.
-- Fallback fingerprint for very large files or directory datasets: file count, total size, modified-time summary, key metadata hash, or sampled-block hash.
-- Format, dimensions/shape, dtype, units, coordinates, sampling rate, or other scientific metadata where relevant.
-
-For Zarr, HDF5, MAT, NetCDF, TIFF stacks, and similar structured data, record dataset/group names, shapes, dtypes, attrs, and units where available.
-
-If even fallback fingerprinting is absent, the report cannot be `complete`.
-
-## Output Lineage
-
-Every figure, table, processed dataset, model, or statistic used in conclusions must trace back to:
-
-- Input IDs.
-- Step IDs.
-- Script/function/command or evidence source.
-- Parameters and method basis.
-
-The report cannot just say "generated figure X." It must state how X was derived.
-
-## Figures And Captions
-
-Reports that produce, audit, or rely on figures must include figure references and captions, but keep `REPORT.md` captions compact.
-
-Required behavior:
-
-- Put generated or copied review figures under `figures/`, or reference existing figure paths if copying would duplicate large files.
-- Add every review-relevant figure to `FIGURE_INDEX.md`.
-- In `REPORT.md`, embed or link only the figures needed to follow the processing outcome.
-- In `REPORT.md`, use one-sentence captions that state what is shown in plain language, define or avoid unfamiliar input/step IDs, give the key unit/scale/colorbar meaning, and add one caveat if needed.
-- In `FIGURE_INDEX.md` and `AUDIT_MANIFEST.json`, keep the complete figure metadata: data source, processing step IDs, key parameters, units/scale/colorbar meaning, caption, caveats, `derived_from_steps`, and `derived_from_inputs`.
-- If a figure is pre-existing, label it `existing_file` and record its source path/fingerprint when possible.
-- If a figure is only illustrative or exploratory, label it as such; do not let it support a formal claim.
-
-Minimal `REPORT.md` caption pattern:
-
-```text
-Figure N. What is shown; input/step IDs; key unit/scale; one caveat if needed.
-```
-
-## Execution Evidence
-
-`COMMAND_LOG.md` records actual operations only:
-
-- Commands run, working directories, timestamps, exit status, important output.
-- Script paths, function entry points, notebook paths/cells, software versions.
-- Failures and corrections.
-
-Use these evidence labels in `AUDIT_MANIFEST.json`:
-
-```text
-executed_this_session | existing_file | inferred_from_code | user_provided | gui_manual | unknown
-```
-
-`unknown` requires downgrade or blockage.
-
-## Environment And Code Version
-
-Record:
-
-- Working directory and OS.
-- Python/MATLAB/R/COMSOL/Origin/Excel or other relevant runtime versions.
-- Important package versions.
-- Git repo, commit, and dirty status when applicable.
-- Script/notebook/model file paths, Git status, and SHA256 when not fully tracked.
-- Random seeds and nondeterministic settings.
-
-If environment or code version cannot be confirmed, reproducibility is at most `partially_reproducible`.
-
-## Scientific Review
-
-`QC_CHECKLIST.md` is the complete scientific review surface. `REPORT.md` should contain only the highest-signal review outcome:
-
-- 3-5 manual review targets, blockers, or downgrade reasons.
-- One-line status for units/coordinates/scale/calibration, key filters/statistics/thresholds, and figure readability.
-- Any sensitivity or plausibility result that changes confidence.
-
-`QC_CHECKLIST.md` must still include:
-
-- Unit and coordinate checks.
-- Sampling rate, time step, spatial scale, and calibration checks.
-- Filtering, smoothing, interpolation, fitting, statistics, and threshold justification.
-- Outlier/missing-data policy.
-- Sensitivity checks for important thresholds, or explicit `not_assessed`.
-- Physical/statistical plausibility checks.
-- What would invalidate the result.
-- The 3-5 highest-priority manual review targets for formal outputs.
-- Figure-level checks: axes, units, colorbars, legends, annotations, cropping, normalization, and caption accuracy.
-
-Do not write "no issue found" unless the attack surfaces checked are listed.
-
-## Claims Boundary
-
-Separate data-processing conclusions from scientific interpretation. Keep `REPORT.md` claim boundaries short; store expanded claim lists in `AUDIT_MANIFEST.json` when needed.
-
-- `Claims allowed by this processing`
-- `Claims not supported by this processing`
-- `Claims requiring external evidence`
-
-Do not turn processed trends into final scientific mechanism claims unless the evidence chain actually supports that.
-
-## Final Response
-
-When finished, tell the user:
-
-- Package path.
-- Audit status, reproducibility, and scientific confidence.
-- Whether validation passed.
-- The most important blockers or manual review targets.
-
-If validation was not run, state why.
+Final response: link the report and useful outputs, state the result and material unresolved issues, and describe validation accurately. Avoid listing bookkeeping files.

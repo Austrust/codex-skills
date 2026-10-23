@@ -12,18 +12,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-KEY_BOUNDARIES = {
-    "00_project",
-    "01_sources",
-    "10_tasks",
-    "20_methods",
-    "30_literature",
-    "40_reference",
-    "50_reports",
-    "70_manuscript",
-    "80_presentations",
-    "90_archive",
-}
+RUN_DIR_NAME = "runs"
 
 SKIP_PARTS = {
     ".git",
@@ -35,13 +24,16 @@ SKIP_PARTS = {
     ".mypy_cache",
     ".ruff_cache",
     "node_modules",
-    "outputs",
     "intermediate",
+    "_organizer",
+    "cache",
+    "tmp",
+    "temp",
+    "figures",
+    "images",
 }
 
 STATUS_RE = re.compile(r"^[ MADRCU?!]{2}\s+(.+)$")
-TASK_RE = re.compile(r"^T\d{3}_.+")
-RUN_RE = re.compile(r"^\d{8}.*")
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
@@ -87,41 +79,26 @@ def git_changed_paths(root: Path) -> list[Path]:
     return paths
 
 
+def in_scope(path: Path, root: Path) -> bool:
+    if not (path == root or root in path.parents):
+        return False
+    return not any(part in SKIP_PARTS for part in path.relative_to(root).parts)
+
+
 def is_task_dir(path: Path, root: Path) -> bool:
-    parts = path.relative_to(root).parts if path == root or root in path.parents else ()
-    return len(parts) == 2 and parts[0] == "10_tasks" and TASK_RE.match(parts[1]) is not None
+    return in_scope(path, root) and (path / RUN_DIR_NAME).is_dir()
 
 
 def is_run_dir(path: Path, root: Path) -> bool:
-    if not (path == root or root in path.parents):
-        return False
-    parts = path.relative_to(root).parts
-    return (
-        len(parts) == 4
-        and parts[0] == "10_tasks"
-        and TASK_RE.match(parts[1]) is not None
-        and parts[2] == "runs"
-        and RUN_RE.match(parts[3]) is not None
-    )
+    return in_scope(path, root) and path.parent.name == RUN_DIR_NAME and path.parent != root
 
 
 def is_stable_dir(path: Path, root: Path) -> bool:
-    if not path.exists() or not path.is_dir():
+    if not path.is_dir() or not in_scope(path, root):
         return False
-    if not (path == root or root in path.parents):
-        return False
-    parts = path.relative_to(root).parts
-    if not parts:
-        return True
-    if any(part in SKIP_PARTS for part in parts):
-        return False
-    if len(parts) == 1 and parts[0] in KEY_BOUNDARIES:
-        return True
-    if is_task_dir(path, root) or is_run_dir(path, root):
-        return True
-    if len(parts) == 2 and parts[0] in KEY_BOUNDARIES - {"10_tasks"}:
-        return True
-    return False
+    return (path == root or (path / "README.md").is_file()
+            or (path / "REPORT.md").is_file()
+            or is_task_dir(path, root) or is_run_dir(path, root))
 
 
 def nearest_existing_dir(path: Path) -> Path | None:
@@ -141,15 +118,12 @@ def affected_stable_dirs(root: Path, paths: Iterable[Path]) -> set[Path]:
             continue
         if not (current == root or root in current.parents):
             continue
-        rel_parts = current.relative_to(root).parts
-        candidates = [current]
-        if len(rel_parts) >= 2 and rel_parts[0] == "10_tasks":
-            candidates.append(root / "10_tasks" / rel_parts[1])
-        if len(rel_parts) >= 4 and rel_parts[0] == "10_tasks" and rel_parts[2] == "runs":
-            candidates.append(root / "10_tasks" / rel_parts[1] / "runs" / rel_parts[3])
-        if rel_parts:
-            candidates.append(root / rel_parts[0])
-        for candidate in candidates:
+        # Explicit/current changed directories are candidates; walk only their ancestors.
+        if in_scope(current, root):
+            affected.add(current)
+        for candidate in [current, *current.parents]:
+            if candidate == root.parent:
+                break
             if is_stable_dir(candidate, root):
                 affected.add(candidate)
     return affected
@@ -157,8 +131,12 @@ def affected_stable_dirs(root: Path, paths: Iterable[Path]) -> set[Path]:
 
 def all_stable_dirs(root: Path) -> set[Path]:
     stable: set[Path] = {root}
-    for path in root.rglob("*"):
-        if path.is_dir() and is_stable_dir(path, root):
+    import os
+    for current, dirs, _ in os.walk(root, followlinks=False):
+        dirs[:] = [name for name in dirs if name not in SKIP_PARTS
+                   and not (Path(current) / name).is_symlink()]
+        path = Path(current)
+        if is_stable_dir(path, root):
             stable.add(path)
     return stable
 
@@ -192,7 +170,7 @@ def audit_parent_links(root: Path, stable_dirs: Iterable[Path]) -> list[dict]:
             direct_child = child
             while direct_child.parent != parent and direct_child.parent != direct_child:
                 direct_child = direct_child.parent
-            if direct_child == parent or not is_stable_dir(direct_child, root):
+            if direct_child == parent or not in_scope(direct_child, root):
                 continue
             text = safe_read(readme)
             if not has_child_reference(text, direct_child):
@@ -212,7 +190,7 @@ def audit_missing_readmes(root: Path, stable_dirs: Iterable[Path]) -> list[dict]
     gaps: list[dict] = []
     for path in sorted(stable_dirs):
         readme = path / "README.md"
-        if not readme.exists():
+        if not readme.exists() and not (path / "REPORT.md").is_file():
             gaps.append(
                 {
                     "type": "missing_readme",
@@ -226,11 +204,11 @@ def audit_missing_readmes(root: Path, stable_dirs: Iterable[Path]) -> list[dict]
 def task_dir_for_run(run_dir: Path, root: Path) -> Path | None:
     if not is_run_dir(run_dir, root):
         return None
-    parts = run_dir.relative_to(root).parts
-    return root / "10_tasks" / parts[1]
+    return run_dir.parent.parent
 
 
 def audit_run_entries(root: Path, stable_dirs: Iterable[Path]) -> list[dict]:
+    stable_dirs = set(stable_dirs)
     task_dirs: set[Path] = set()
     for path in stable_dirs:
         if is_task_dir(path, root):
@@ -243,11 +221,11 @@ def audit_run_entries(root: Path, stable_dirs: Iterable[Path]) -> list[dict]:
     for task_dir in sorted(task_dirs):
         readme = task_dir / "README.md"
         text = safe_read(readme)
-        runs_root = task_dir / "runs"
+        runs_root = task_dir / RUN_DIR_NAME
         if not runs_root.exists():
             continue
         for run in sorted([p for p in runs_root.iterdir() if p.is_dir()]):
-            if run.name not in text:
+            if run in stable_dirs and run.name not in text:
                 gaps.append(
                     {
                         "type": "missing_run_entry",
@@ -328,12 +306,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-root", default=".", help="Project root. Defaults to current directory.")
     parser.add_argument("--paths", nargs="*", help="Changed paths to audit. Defaults to git status paths.")
     parser.add_argument("--full", action="store_true", help="Audit the whole project instead of changed paths.")
+    parser.add_argument("--run-dir-name", default="runs", help="Existing run-container name.")
     parser.add_argument("--out", default=None, help="Output directory. Defaults to <project-root>/_organizer.")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    global RUN_DIR_NAME
+    RUN_DIR_NAME = args.run_dir_name
     root = Path(args.project_root).resolve()
     if not root.exists() or not root.is_dir():
         raise SystemExit(f"Project root does not exist: {root}")

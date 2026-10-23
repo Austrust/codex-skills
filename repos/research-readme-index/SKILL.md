@@ -1,6 +1,6 @@
 ---
 name: research-readme-index
-description: Lightly maintain README-based navigation indexes in research projects. Use when the user asks to update README navigation, maintain folder indexes, add a task/run/report folder to navigation, refresh run indexes, or audit missing README links. Defaults to the task-package structure produced by research-folder-organizer.
+description: Lightly maintain README-based navigation indexes in research projects. Use when the user asks to update README navigation, maintain folder indexes, add a task/run/report folder to navigation, refresh run indexes, or audit missing README links. Preserves existing project layouts and naming.
 ---
 
 # Research README Index
@@ -9,20 +9,7 @@ description: Lightly maintain README-based navigation indexes in research projec
 
 Use this skill for lightweight README navigation maintenance in research projects. It is for routine index upkeep after stable folder or run changes, not for full folder reorganization.
 
-Default structure is compatible with `research-folder-organizer`:
-
-```text
-00_project/
-01_sources/
-10_tasks/T###_short_slug/runs/YYYYMMDD_label/
-20_methods/
-30_literature/
-40_reference/
-50_reports/
-70_manuscript/
-80_presentations/
-90_archive/
-```
+Use the project's existing structure. Task folders need no fixed parent, numbering, or naming pattern; runs need no date prefix. Do not migrate folders to satisfy an index convention.
 
 ## Core Rules
 
@@ -50,8 +37,8 @@ Do not turn README files into full reports, complete file trees, raw command log
 Each README answers only the routing question for its level:
 
 - Project root `README.md`: project purpose, main navigation routes, and what each top-level area owns.
-- Top-level area README, such as `10_tasks/README.md` or `50_reports/README.md`: what belongs there, what does not, and a compact list of direct child packages.
-- Task package README, such as `10_tasks/T###_short_slug/README.md`: task purpose, minimal background, main inputs, key scripts, main outputs, downstream consumers, and a run index.
+- Existing area README, such as `tasks/README.md` or `reports/README.md`: what belongs there, what does not, and a compact list of direct child packages.
+- Task package README, such as `analyses/flow/README.md`: task purpose, minimal background, main inputs, key scripts, main outputs, downstream consumers, and a run index.
 - Run-level `README.md` or `REPORT.md`: what this run did, why it was needed, inputs, workflow or commands, outputs, confidence, limitations, and next-step implications.
 - Archive README: why the material was archived, what replaced it, and whether it is forbidden as active evidence.
 
@@ -64,32 +51,34 @@ Parent README files list direct children only. Do not make the root README carry
    - If the user gave paths, use those paths.
    - Else use the current Git change set.
    - Use full-project scanning only when the user explicitly asks.
-3. Run the audit script when useful:
+3. Small changes can be checked directly without generating audit artifacts. Optionally run the bundled script, resolved relative to this skill directory, with the project's Python:
 
    ```powershell
-   .\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root .
+   .\.venv\Scripts\python.exe <skill-directory>/scripts/audit_readme_index.py --project-root .
    ```
 
    With explicit paths:
 
    ```powershell
-   .\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root . --paths 10_tasks\T016_example\runs\20260605_new_run
+   .\.venv\Scripts\python.exe <skill-directory>/scripts/audit_readme_index.py --project-root . --paths tasks\flow_analysis\runs\baseline
    ```
 
    Full audit:
 
    ```powershell
-   .\.venv\Scripts\python.exe $env:USERPROFILE\.codex\skills\research-readme-index\scripts\audit_readme_index.py --project-root . --full
+   .\.venv\Scripts\python.exe <skill-directory>/scripts/audit_readme_index.py --project-root . --full
    ```
 
 4. Patch README files minimally:
    - Existing README: add or update only the relevant row, bullet, or short section.
-   - Missing README for a stable folder: create a concise README.
+   - Missing README for a confirmed stable folder: create a concise README when it adds navigation value; an existing run REPORT.md can already serve as its landing page.
    - Missing run entry: update the owning task package README.
    - Parent README: add only the direct child entry needed for navigation.
 5. Verify the changed README links resolve where practical.
 
-The script writes:
+The script recognizes tasks by a run-container child (default runs), existing README/REPORT entrypoints, or explicitly supplied folder paths. Use --run-dir-name experiments for another run-container name. Full scans identify candidates from these signals, not every folder; review ambiguous ownership manually. A run REPORT.md is a valid landing page and does not require a duplicate README.
+
+The optional script writes:
 
 - `_organizer/readme_index_audit.json`
 - `_organizer/readme_index_audit.md`
@@ -103,7 +92,7 @@ Recommended format, not mandatory:
 
 | Run | Purpose | Status | Report |
 | --- | --- | --- | --- |
-| `YYYYMMDD_label` | Low-context explanation of what this run did and why it matters. | complete | [REPORT.md](runs/YYYYMMDD_label/REPORT.md) |
+| `baseline` | Low-context explanation of what this run did and why it matters. | complete | [REPORT.md](runs/baseline/REPORT.md) |
 ```
 
 Use an existing list or table format when one is already established. Do not rewrite old entries only for formatting consistency.

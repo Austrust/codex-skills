@@ -107,7 +107,7 @@ def load_manifest(v: Validation, package_dir: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
         v.error(f"AUDIT_MANIFEST.json is invalid JSON: {exc}")
         return {}
@@ -364,9 +364,14 @@ def main() -> int:
         print(f"ERROR: package directory not found: {package_dir}", file=sys.stderr)
         return 2
 
-    validate_files(v, package_dir)
     manifest = load_manifest(v, package_dir)
-    validate_manifest(v, manifest)
+    if not (package_dir / "AUDIT_MANIFEST.json").exists() or manifest.get("schema_version") == "2.0":
+        from report_core import validate_report
+        validate_report(v, package_dir, manifest)
+    elif manifest:
+        validate_files(v, package_dir)
+        validate_manifest(v, manifest)
+    # Invalid JSON already produces an error in load_manifest.
 
     for warning in v.warnings:
         print(f"WARNING: {warning}")

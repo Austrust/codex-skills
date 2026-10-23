@@ -1,74 +1,36 @@
 ---
 name: research-report-index
-description: Build and refresh a lightweight Markdown index of scientific report packages in task-based research projects. Use when a project has task folders with runs and REPORT.md files, or when the user asks to expose, index, navigate, or refresh generated scientific-data-report outputs.
+description: Maintain a lightweight report navigation index in research projects using their existing layout. Use when the user requests report discovery, indexing, or refreshing an existing generated report index.
 ---
 
 # Research Report Index
 
-## Quick Start
-
-From the project root, run the bundled script with the project's Python:
-
-```powershell
-.\.venv\Scripts\python.exe 00_project\skills\research-report-index\scripts\update_report_index.py `
-  --project-root . `
-  --update-summary "本轮刷新报告导航索引。"
-```
-
-The default project files are:
-
-- `00_project/dashboard_config.json` for machine-readable settings.
-- `00_project/navigation_annotations.md` for optional human overrides.
-- `REPORT_INDEX.md` as the generated report navigation page.
-- `PROJECT_UPDATES.md` as the per-agent-turn update log.
+Expose existing reports without reorganizing their source folders. Preserve task names, report locations, and established navigation formats.
 
 ## Workflow
 
-1. Read the project instructions first, especially Python environment and post-change maintenance rules.
-2. Make the requested project changes.
-3. Add or adjust entries in `00_project/navigation_annotations.md` only when automatic extraction produces a weak topic or summary.
-4. Run `scripts/update_report_index.py` with a concise `--update-summary`.
-5. Verify `REPORT_INDEX.md` exposes the new or changed reports.
-6. Run any project-required graph or index maintenance after the report index refresh.
+1. Read project instructions and the existing index/configuration. Limit inspection to requested paths or the current changes; do not run a project-wide scan merely because a report changed.
+2. For a small manual index, patch affected entries in place. Use the bundled generator when the project already uses its format or the user requests a generated index. It regenerates the complete configured index, not an incremental patch; do not overwrite a hand-maintained index without preserving its content or choosing a separate destination.
+3. Infer task ownership from project context, not a T### prefix. Reports may live directly in a task or in named execution folders. Do not require numbered roots, dated runs, manifests, or a directory migration.
+4. Include purpose/topic, concise summary, report link, and useful related links. Copy status only when explicitly recorded; do not infer scientific confidence or manuscript readiness.
+5. Verify affected links and report coverage. Maintain an existing README route to a new index when needed, using research-readme-index. Do not create a Wiki, configuration, annotations, or per-turn log solely to satisfy this skill.
 
-## Scope
+## Optional Generator
 
-This skill intentionally keeps the generated page simple:
+Resolve scripts/update_report_index.py relative to this installed skill directory and use the project's required Python interpreter:
 
-- Group by task folder.
-- Under each task, list runs that contain `REPORT.md`.
-- For each run, show topic, short summary, optional status, report link, and related links.
-- Do not infer scientific evidence roles, claim boundaries, or manuscript readiness unless the user explicitly adds that language to annotations.
+    python <skill-directory>/scripts/update_report_index.py --project-root <project> --task-root analyses
 
-## Configuration
+--task-root is repeatable and names a parent containing task directories. With no root supplied, an existing configuration takes precedence; otherwise the script recognizes existing 10_tasks and tasks folders. If neither exists, it stops without writing and asks for an explicit root. It never creates task roots.
 
-Minimal `00_project/dashboard_config.json`:
+The generator supports <task>/<report-file> and <task>/<run-dir-name>/*/<report-file>. Task and run names are unrestricted. Use --run-dir-name experiments, --report-file findings.md, or --index-path docs/REPORT_INDEX.md as needed. For other layouts, maintain the existing index directly or supply a suitable configuration rather than moving reports.
 
-```json
-{
-  "language": "zh-CN",
-  "index_path": "REPORT_INDEX.md",
-  "updates_path": "PROJECT_UPDATES.md",
-  "annotations_path": "00_project/navigation_annotations.md",
-  "task_roots": ["10_tasks"],
-  "task_pattern": "T[0-9][0-9][0-9]_*",
-  "run_dir_name": "runs"
-}
-```
+The default output is REPORT_INDEX.md. The generator remains Chinese-dominant; maintain other-language indexes directly to preserve their language. A --update-summary explicitly requests an update-log entry; without it no PROJECT_UPDATES.md is created or appended. --changed-path records paths in that optional log and does not restrict scanning.
 
-## Annotation Format
+## Existing Configuration Compatibility
 
-Use structured Markdown blocks keyed by a relative task or run path:
+An existing 00_project/dashboard_config.json is still read automatically. Use --config <file> for another location; all configured project paths are relative to the project root. No configuration file is created automatically.
 
-```markdown
-## 10_tasks/T002_uiv_processing/runs/20260530_104646_flowrate0p1-full-source-refresh
+Supported settings include task_roots, task_pattern (default *), run_dir_name (default runs), report_file (default REPORT.md), index_path, annotations_path, updates_path, manifest_file, and related_files. Explicit legacy patterns and paths are preserved. Set annotations_path or updates_path to null to disable those optional files.
 
-topic: flowrate=0.1 完整数据源刷新
-summary: 替换为完整 12000-frame OpenPIV 数据源，重新生成 UIV 主指标和图件。
-```
-
-Supported keys:
-
-- `topic`
-- `summary`
-
+Existing annotations at 00_project/navigation_annotations.md remain supported, or set annotations_path to another location. Annotations are optional Markdown blocks keyed by project-relative task or report-folder path, with topic: and summary: fields. Use them only when extraction needs a durable override. Existing manifests and related files are linked when present; missing ones do not block indexing.

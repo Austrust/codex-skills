@@ -191,7 +191,7 @@ def load_project_config(root: Path) -> dict:
         "project_venv_required": venv_required,
         "ignore_patterns": ignore_patterns,
         "language": detect_language(root, files),
-        "organizer_wiki_name": "整理Wiki.md" if detect_language(root, files) == "zh" else "OrganizationWiki.md",
+
     }
 
 
@@ -443,7 +443,6 @@ def write_report(path: Path, data: dict) -> None:
     lines.append(f"- Generated: `{data['generated_at']}`")
     lines.append(f"- Mode: dry-run, report-only")
     lines.append(f"- Project language: `{config['language']}`")
-    lines.append(f"- Suggested organizer wiki: `{config['organizer_wiki_name']}`")
     lines.append(f"- Config files found: {', '.join(config['files_found']) or 'none'}")
     lines.append(f"- Project venv required: `{config['project_venv_required']}`")
     lines.append(f"- Git repo: `{git['is_repo']}`")
@@ -530,20 +529,19 @@ def write_batches(path: Path, data: dict) -> None:
     lines = [
         "# Proposed Organizer Batches",
         "",
-        "All batches require explicit user approval before execution.",
+        "Optional review areas, not a migration plan. Act within the user request and existing authorization; group unresolved decisions.",
         "",
         "## Batch 1: Entry Points And Indexes",
         "",
-        "- Create or update each `10_tasks/T###_*/README.md` as the canonical task landing page.",
-        "- Each task README should explain the task in low-context prose and include a short entry for every `runs/*` folder.",
-        f"- Create or update organizer wiki: `{config['organizer_wiki_name']}`.",
-        "- Keep existing project README/Wiki untouched unless separately approved.",
-        "- Link this inventory and future execution records from `_organizer/README.md`.",
+        "- Update affected task READMEs in the existing layout; numbered task folders are optional.",
+        "- Explain affected tasks and runs concisely; scope README updates to the requested work.",
+        "- Preserve existing README language and structure; maintain navigation within the authorized scope.",
+        "- Add a separate inventory index or execution record only when it serves the requested migration.",
         "",
         "## Batch 2: Archive Review",
         "",
-        "- New archive moves should target `_archive/YYYY-MM-DD_description/`.",
-        "- Existing `99_旧版归档_*` or similar archives should only be consolidated after separate approval.",
+        "- Archive confirmed superseded material using the existing project convention.",
+        "- Preserve historical archives unless their consolidation is part of the requested work.",
     ]
     archive_examples = scan["archive_examples"]
     if archive_examples:
@@ -571,7 +569,7 @@ def write_batches(path: Path, data: dict) -> None:
             "",
             "## Batch 4: Git",
             "",
-            "- Stage only organizer-created files or approved archive moves.",
+            "- Stage or commit only when requested, and include only the authorized organizer changes.",
             "- Do not include unrelated dirty worktree changes.",
             "- Do not update or stage unknown generated-tool outputs as part of this organizer workflow.",
         ]
