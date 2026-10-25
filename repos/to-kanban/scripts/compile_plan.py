@@ -21,8 +21,8 @@ STATUS_LABELS = {
     "inbox": "收集箱",
     "todo": "待办",
     "in_progress": "进行中",
-    "blocked": "等待/受阻",
-    "review": "待审核",
+    "blocked": "等外部",
+    "review": "等验收",
     "done": "已完成",
 }
 SUMMARY_KEYS = {"tasks", "primaryNextTask", "workspaceMarkers"}

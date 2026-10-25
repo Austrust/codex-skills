@@ -1,6 +1,6 @@
 # Project Context and Handoff
 
-Updated: 2026-10-19
+Updated: 2026-10-25
 
 ## Current governance
 
@@ -38,6 +38,11 @@ mirrors preserve all old branches and tags. See
   Local routing memory does not override them. Both Kanban skills must be updated
   together; see `repos/planka-kanban/references/shared-wip.md`. Inbox is capture,
   todo is ready-to-pull, and completion requires per-criterion evidence.
+- Chinese work boards use 收集箱 / 待办 / 进行中 / 等外部 / 等验收 / 已完成 / 看板规则.
+  Started waiting and review work count toward the board-specific WIP limit.
+  Explicit archive-only boards use a plain-language exemption note, not an empty
+  machine policy. Refresh local snapshots after structure/policy changes; refresh
+  invalidates the derived route/board pair and preserves learned routing history.
 - `grill-me` installs its `grilling` dependency first.
 - Runtime state lives outside Git at `$CODEX_HOME/to-kanban/`, or `~/.codex/to-kanban/`.
 - Planka accepts `PLANKA_BASE_URL` plus an API key or username/password.

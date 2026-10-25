@@ -1,5 +1,15 @@
 # Flow policy and input fields
 
+## Work-board structure and archive exception
+
+The maintained Chinese work-board order is 收集箱 / 待办 / 进行中 / 等外部 / 等验收 / 已完成 / 看板规则. These map to `inbox`, `todo`, `in_progress`, `blocked`, `review`, `done`, and configuration respectively. 等待反馈 and 待审核 remain backward-compatible aliases for blocked and review. When authorized to unify a board, add missing stages without moving existing tasks, preserve the board's limit, and update its policy IDs to count 进行中, 等外部 and 等验收. Do not assume every board has the same limit or rename other boards automatically.
+
+An explicitly designated archive-only board is outside the work flow and WIP accounting. Keep a plain-language card such as 存档说明（不参与 WIP） in 看板规则; it must have neither the `[kanban-policy:v1]` title prefix nor a `kanban-policy` block. Do not represent exemption with an empty `wipListIds`, zero limit or fabricated capacity. The reader reports a missing policy for this representation; that alone does not establish an archive exemption on other boards. Check the explicit archive designation, exclude it from new-work routing, and require an active board and valid policy before restarting archived work.
+
+After changes, run `kanban_context.py refresh`: it refreshes the snapshot and invalidates the derived current route/board pair. Reroute before compilation. Preserve workspace routes and learning history; do not turn a multi-board maintenance operation into a new preferred task destination. Shared online policy stays authoritative, and live occupancy is never a durable instruction or a repository fixture.
+
+## Shared policy
+
 `inbox` is capture/clarification; `todo` is ready to pull, not a general backlog. Preserve partial mappings for capture. The route must contain distinct list names for these roles. If a board lacks an inbox, ask once for its mapping or authorization to create one; never silently repurpose its ready list.
 
 The authoritative policy is a card on the PLANKA board, titled `[kanban-policy:v1] WIP 规则`. Keep it in a visible non-work list such as 看板规则. The reader excludes this card from WIP and ordinary task matching, even if it is accidentally moved to an active list.

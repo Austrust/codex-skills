@@ -7,6 +7,7 @@ Codex skill for inspecting and editing PLANKA kanban boards through the REST API
 - `SKILL.md`: Codex skill instructions and safety rules.
 - `scripts/planka_cli.py`: Dependency-free PLANKA API helper.
 - `references/api.md`: Practical PLANKA REST API notes.
+- [Shared WIP policy](references/shared-wip.md): maintained workflow stages, board-owned capacity, archive exemption and cache synchronization.
 - `agents/openai.yaml`: Codex skill interface metadata.
 
 ## Authentication

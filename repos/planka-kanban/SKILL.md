@@ -19,6 +19,8 @@ This skill is the API execution layer. For conversation capture, readiness, WIP 
 
 ## Shared WIP policy
 
+Maintained Chinese work boards use 收集箱 / 待办 / 进行中 / 等外部 / 等验收 / 已完成 / 看板规则. Count 进行中, 等外部 and 等验收 by their actual list IDs; preserve each board's agreed limit. Archive-only boards use a plain-language exemption note instead of a machine policy with empty list IDs. See [references/shared-wip.md](references/shared-wip.md) for the representation and post-change cache synchronization.
+
 Keep the dedicated 看板规则 list last, to the right of all workflow stages. If it was created first while bootstrapping a board, move it to the end once the work lists exist; preserve work-list order and verify the final placement.
 
 Read [references/shared-wip.md](references/shared-wip.md) to configure or inspect board-owned WIP rules. Use `policy-read` and `policy-set`; do not invent a native board field. The policy card is shared through PLANKA and is not a work item. Direct start decisions must read it too. Compiled plans recheck policy/WIP before applying; this does not lock concurrent writers.

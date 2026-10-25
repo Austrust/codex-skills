@@ -9,6 +9,8 @@ Treat this skill as the conversation-facing collection layer over `planka-kanban
 
 ## Flow policy
 
+The maintained Chinese work-board order is 收集箱 / 待办 / 进行中 / 等外部 / 等验收 / 已完成 / 看板规则. `等外部` maps to `blocked`, and `等验收` to `review`; old names 等待反馈 and 待审核 remain supported aliases. WIP includes 进行中, 等外部 and 等验收, using the live policy's list IDs and board-specific limit. Read [references/flow-policy.md](references/flow-policy.md) for archive-only boards and cache refresh behavior.
+
 When creating or organizing a board, put the dedicated 看板规则 list last (rightmost), after the workflow stages. Keep its configuration card out of the task flow; follow planka-kanban's shared-WIP instructions to place and verify the list.
 
 Read [references/flow-policy.md](references/flow-policy.md) before compiling a plan. It defines WIP configuration, dependency evidence, and completion evidence.
@@ -56,7 +58,7 @@ py <to-kanban-skill>/scripts/kanban_context.py status
 py <to-kanban-skill>/scripts/kanban_context.py refresh
 ```
 
-`refresh` calls `planka_cli.py` and replaces the sanitized offline snapshot atomically. If refresh fails but a prior snapshot exists, routing may continue from it only after clearly reporting its age. If no snapshot exists, stop before planning a write and report the Planka connection problem.
+`refresh` calls `planka_cli.py`, replaces the sanitized offline snapshot atomically, and removes `current-route.json` and `current-board.json` so the next route uses the new lists and policy. It preserves routing history and workspace preferences. Refresh after board structure or policy changes even if the snapshot is younger than 15 minutes. If refresh fails but a prior snapshot exists, routing may continue from it only after clearly reporting its age. If no snapshot exists, stop before planning a write and report the Planka connection problem.
 
 ## 1. Design Kanban-quality work items
 

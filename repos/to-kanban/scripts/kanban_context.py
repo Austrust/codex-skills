@@ -23,8 +23,8 @@ ROLE_TERMS = {
     "inbox": ("收集箱", "想法池", "inbox", "backlog"),
     "todo": ("待办", "待处理", "可拉取待办", "ready", "todo", "to do", "tasks"),
     "in_progress": ("进行中", "处理中", "执行中", "doing", "in progress", "active", "working"),
-    "blocked": ("等待反馈", "等待", "受阻", "暂停", "blocked", "waiting", "on hold"),
-    "review": ("待审核", "审核", "评审", "review", "checking", "qa"),
+    "blocked": ("等外部", "等待反馈", "等待", "受阻", "暂停", "blocked", "waiting", "on hold"),
+    "review": ("等验收", "待审核", "审核", "评审", "review", "checking", "qa"),
     "done": ("已完成", "完成", "done", "complete", "completed", "finished"),
 }
 SECRET_PATTERNS = (
@@ -253,6 +253,10 @@ def refresh_snapshot(paths: dict[str, Path], cli_path: Path | None = None) -> di
             board_payloads[board_id] = run_planka_json(cli, ["board", "--board-id", board_id])
     snapshot = build_offline_snapshot(projects, board_payloads)
     atomic_write_json(paths["snapshot"], snapshot)
+    # These two files are derived from a particular snapshot and policy.
+    # Preserve routing history, but require routing again after a refresh.
+    for key in ("route", "board"):
+        paths[key].unlink(missing_ok=True)
     return snapshot
 
 
