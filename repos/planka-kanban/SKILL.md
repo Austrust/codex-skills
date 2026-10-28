@@ -27,7 +27,7 @@ Read [references/shared-wip.md](references/shared-wip.md) to configure or inspec
 
 ## Quick Start
 
-1. Read [references/local-context.md](references/local-context.md) first when it exists: it holds the machine-local account mapping (agent vs. owner account), board index, assignee conventions, and pitfalls already paid for. It is git-ignored and maintained outside the repository.
+1. Read [references/local-context.md](references/local-context.md) first when it exists: it holds only what this machine needs to talk to the instance — URL, credentials env vars, account mapping (agent vs. owner account), board index, assignee conventions. It is git-ignored and maintained outside the repository. Operational findings (write-side failure modes, archive mechanics, read-shape quirks) belong in the user's knowledge base, not here.
 2. Read [references/api.md](references/api.md) when endpoint details, payload fields, or permission boundaries matter, especially its membership/attachment write guidance, batch recovery, and observed response/state semantics.
 3. Use `scripts/planka_cli.py` for common operations before hand-writing HTTP calls.
 4. Authenticate with `PLANKA_BASE_URL` (also accepts `PLANK_USER_BASE_URL`) plus either `PLANKA_API_KEY` or `PLANKA_USERNAME`/`PLANKA_PASSWORD`.
