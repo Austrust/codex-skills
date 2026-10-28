@@ -166,6 +166,43 @@ For comments with Chinese or multiline text, prefer a JSON spec:
 }
 ```
 
+## Write Operations: Memberships, Attachments, and Recovery
+
+These operational notes were reported from use of a deployed instance. Check its response shape and supported routes when a different version behaves differently; do not infer that a failed request made no changes.
+
+### Card memberships
+
+- Add with `POST /api/cards/{cardId}/card-memberships` and a `userId`. The user must already belong to the destination board; otherwise the observed response is `404 User not found`.
+- If board access is missing, establish the necessary board membership first through `POST /api/boards/{boardId}/board-memberships`. An `editor` membership worked in the reported workflow; do not elevate an existing role or grant temporary access without authorization. Record the original membership and role. Revoke only access introduced for the operation when that cleanup is authorized, and then verify that required card assignments still exist.
+- Remove with `DELETE /api/cards/{cardId}/card-memberships/userId:{userId}`: use exactly one literal colon. The observed double-colon form returns `400 Invalid userId`; `/api/card-memberships/{membershipId}` returns 404 on that instance.
+- No per-card bulk membership removal endpoint was available in the reported instance. Enumerate the verified `(cardId, userId)` pairs and delete individually.
+
+### File attachments
+
+Upload with `POST /api/cards/{cardId}/attachments`, using multipart form data with all three fields:
+
+| Field | Value |
+|---|---|
+| `file` | Binary file content |
+| `type` | `file` |
+| `name` | Filename |
+
+Missing fields returned `400 E_MISSING_OR_INVALID_PARAMS`. Use Bearer authentication, not HTTP Basic (which returned 401). For password login, send the authentication payload above to `POST /api/access-tokens`, take the token from the returned `item`, and use it in the Authorization header without logging it. An existing valid Bearer credential does not need another login. The download path `/attachments/{id}/download/{name}` also requires authenticated access; it is not a public attachment link.
+
+### Batch writes and partial failure
+
+Before bulk edits, save the original affected state locally: card IDs, board/list/position, membership `(cardId, userId)` pairs, and exact description text as relevant. These recovery files may contain private data; keep them outside published skill source and routing caches. Preview supported operations with `--dry-run`, execute the authorized changes, and re-fetch to verify. Where the CLI has no dry-run support, prepare a read-only operation preview rather than inventing a flag. After partial failure, reconcile live state and retry only failed or unapplied operations; never replay the whole batch blindly.
+
+## Observed Response Shapes and State Semantics
+
+- Card membership is a separate relation in `included.cardMemberships`; join it to cards by `cardId`. Do not expect a `memberships` property on each card.
+- The requested board may be absent from `included.boards`. Resolve its name from the top-level `item` of `GET /api/boards/{id}` or fetch that board separately. A project discovery response may have empty `included.projects`; use `GET /api/projects` and its `items` for the project list.
+- List `name` can be null or invisible in the UI. Resolve and operate by verified list IDs rather than guessing a name.
+- `isClosed` means archived, not completed. A normal card in a completed list can still have `isClosed: false`. Determine workflow status from the board's mapped list IDs; determine today's work from those states plus the relevant date rules, not from `isClosed` alone.
+- `[kanban-policy:v1]` policy cards appear in the ordinary cards collection. Exclude the dedicated policy list and policy cards from task totals; WIP uses the configured active/waiting/review list IDs and excludes configuration cards.
+- `dueDate` is stored in UTC. Convert from the user's actual timezone when writing and back when reading. For UTC+08:00, local 21:00 is 13:00Z on the same day; other times and offsets can cross a date boundary. Do not hard-code an eight-hour offset for all users.
+- Description newlines are preserved by the server in the reported workflow, while terminal rendering may visually fold them. Compare decoded text (including newline count or visible `\n` markers), not terminal appearance. Length alone cannot establish exact equality.
+
 ## User And Project Manager Script
 
 Use `scripts/planka_cli.py ensure-project-managers` to create/reuse users and add them to a project as managers. It requires an admin token/account for user creation. PLANKA requires a project manager user to have global role `admin` or `projectOwner`; the script creates users as `projectOwner` by default and patches existing users to that role when needed.
@@ -301,7 +338,7 @@ POST   /api/cards/{id}/duplicate
 POST   /api/cards/{id}/read-notifications
 DELETE /api/cards/{id}
 POST   /api/cards/{cardId}/card-memberships
-DELETE /api/cards/{cardId}/card-memberships/userId::{userId}
+DELETE /api/cards/{cardId}/card-memberships/userId:{userId}
 POST   /api/cards/{cardId}/card-labels
 DELETE /api/cards/{cardId}/card-labels/labelId::{labelId}
 ```
@@ -325,7 +362,7 @@ Card update/move payload:
 
 ```json
 {
-  "boardId": "optional-target-board-id",
+  "boardId": "target-board-id",
   "listId": "target-list-id",
   "position": 65536,
   "name": "New title",
@@ -336,7 +373,7 @@ Card update/move payload:
 }
 ```
 
-When moving to another list or board, include `position`. Board editors can update all card fields; viewers can only subscribe/unsubscribe.
+For moves, send the destination `boardId`, `listId`, and `position` together; missing position can return `422 Position must be present`. Ordinary field edits do not require move fields. Cross-board moves can silently clear card memberships: capture them first and verify/reapply authorized assignments on the destination board. Board editors can update all card fields; viewers can only subscribe/unsubscribe.
 
 Tasks:
 

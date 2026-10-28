@@ -27,7 +27,7 @@ Read [references/shared-wip.md](references/shared-wip.md) to configure or inspec
 
 ## Quick Start
 
-1. Read `references/api.md` when endpoint details, payload fields, or permission boundaries matter.
+1. Read [references/api.md](references/api.md) when endpoint details, payload fields, or permission boundaries matter, especially its membership/attachment write guidance, batch recovery, and observed response/state semantics.
 2. Use `scripts/planka_cli.py` for common operations before hand-writing HTTP calls.
 3. Authenticate with `PLANKA_BASE_URL` (also accepts `PLANK_USER_BASE_URL`) plus either `PLANKA_API_KEY` or `PLANKA_USERNAME`/`PLANKA_PASSWORD`.
 4. Start with read-only discovery: projects -> board -> lists/cards -> membership role.
@@ -168,7 +168,7 @@ For a normal card edit:
 
 1. Fetch the board and confirm the current user has board membership role `editor`.
 2. Resolve the target list and card IDs from the board payload.
-3. Use `PATCH /api/cards/{id}` for moves or field edits. Include `position` when moving to another list.
+3. Use `PATCH /api/cards/{id}` for moves or field edits. For moves, send target `boardId`, `listId`, and `position` together. Cross-board moves can clear members; capture and verify assignments as described in [references/api.md](references/api.md).
 4. Re-fetch the board or card after the write and summarize the resulting state.
 
 For a new card:
@@ -182,10 +182,14 @@ Use `--type project` for cards that need task lists/checklists, due dates, stopw
 For moving a card:
 
 ```bash
-python scripts/planka_cli.py move-card --card-id <cardId> --list-id <listId> --position 65536
+python scripts/planka_cli.py move-card --card-id <cardId> --board-id <boardId> --list-id <listId> --position 65536
 ```
 
 ## Tooling Notes
+
+- Write Chinese, smart quotes (`“”`), and multiline content to UTF-8 JSON files and pass the supported `--file` option. Do not interpolate these strings into PowerShell command lines; smart quotes can be parsed as string delimiters. Keep credential-bearing inputs in memory or use the existing secure stdin flow.
+- In Windows PowerShell 5.1, `New-Object` may enumerate a `byte[]` into separate constructor arguments. Use the appropriate type's `::new(...)` constructor for binary multipart helpers.
+- From Git Bash, prefix commands that pass literal `/api/...` arguments to native executables with `MSYS_NO_PATHCONV=1` to prevent MSYS path rewriting. This is a Git Bash setting, not PowerShell syntax.
 
 The bundled CLI is intentionally small and dependency-free. For large integrations, the official `plankapy` package is a good option, but do not install dependencies unless needed for the task.
 
