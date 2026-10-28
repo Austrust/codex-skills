@@ -10,3 +10,8 @@ __pycache__/
 .pytest_cache/
 .test-state/
 *.py[cod]
+
+# Machine-local working set: installer checkout snapshot and the per-machine
+# PLANKA conventions note (account mapping, board IDs, device details).
+/checkout/
+repos/planka-kanban/references/local-context.md
