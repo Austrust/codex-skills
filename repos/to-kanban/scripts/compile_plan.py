@@ -13,6 +13,7 @@ import unicodedata
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+from kanban_context import state_root, ContextError
 from shared_policy import read_board_policy, policy_cards, PolicyError
 
 
@@ -66,9 +67,7 @@ class ValidationError(ValueError):
 
 
 def default_config_path() -> Path:
-    codex_home = os.environ.get("CODEX_HOME")
-    root = Path(codex_home).expanduser() if codex_home else Path.home() / ".codex"
-    return root / "to-kanban" / "current-route.json"
+    return state_root() / "current-route.json"
 
 
 def default_board_path() -> Path:
@@ -676,12 +675,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--config",
         type=Path,
-        help="Route config JSON; defaults to $CODEX_HOME/to-kanban/current-route.json",
+        help="Route config JSON; defaults to current-route.json in the configured state folder",
     )
     parser.add_argument(
         "--board",
         type=Path,
-        help="Board JSON; defaults to $CODEX_HOME/to-kanban/current-board.json when present",
+        help="Board JSON; defaults to current-board.json in the configured state folder when present",
     )
     parser.add_argument("--output", type=Path, help="Write the apply-plan JSON here; otherwise print to stdout")
     return parser
@@ -701,7 +700,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(json.dumps(plan, ensure_ascii=False, indent=2))
         return 0
-    except ValidationError as exc:
+    except (ValidationError, ContextError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

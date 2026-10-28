@@ -1,6 +1,6 @@
 # Project Context and Handoff
 
-Updated: 2026-10-25
+Updated: 2026-10-28
 
 ## Current governance
 
@@ -44,7 +44,9 @@ mirrors preserve all old branches and tags. See
   machine policy. Refresh local snapshots after structure/policy changes; refresh
   invalidates the derived route/board pair and preserves learned routing history.
 - `grill-me` installs its `grilling` dependency first.
-- Runtime state lives outside Git at `$CODEX_HOME/to-kanban/`, or `~/.codex/to-kanban/`.
+- Runtime state lives outside Git in a local folder chosen by the user on first use.
+  Only its path is saved in `$CODEX_HOME/to-kanban-location.json` (or
+  `~/.codex/to-kanban-location.json`); later invocations reuse that choice.
 - Planka accepts `PLANKA_BASE_URL` plus an API key or username/password.
   Keep credential values, Bark device keys, notification URLs, live board exports,
   and conversation transcripts out of repository source and logs.
@@ -90,9 +92,12 @@ repository.
 
 ### 4. Initialize `to-kanban` routing state
 
-After the skills and Planka access are available:
+After the skills and Planka access are available, ask the user for an absolute
+local state folder. Configure it once before initialization; do not automatically
+select or migrate the legacy default folder:
 
 ```powershell
+py "$env:CODEX_HOME\skills\to-kanban\scripts\kanban_context.py" configure --path "<absolute-local-state-folder>"
 py "$env:CODEX_HOME\skills\to-kanban\scripts\kanban_context.py" init
 py "$env:CODEX_HOME\skills\to-kanban\scripts\kanban_context.py" status
 py "$env:CODEX_HOME\skills\to-kanban\scripts\kanban_context.py" refresh

@@ -23,10 +23,13 @@ Read [references/flow-policy.md](references/flow-policy.md) before compiling a p
 
 ## Shared state
 
-Use one state directory that every Codex conversation can access:
+On the first invocation, require the user to specify an absolute local state folder before initializing, refreshing, routing, or compiling. If the invocation already supplies a folder, use it without asking again. Otherwise ask where to store To Kanban local files and wait for the answer; do not pick the workspace or the legacy default automatically.
 
-- `$CODEX_HOME/to-kanban/` when `CODEX_HOME` is set;
-- otherwise `~/.codex/to-kanban/`.
+Remember the chosen folder with `kanban_context.py configure --path "<absolute-folder>"`. This stores only a `stateDir` path in `$CODEX_HOME/to-kanban-location.json` (or `~/.codex/to-kanban-location.json`). All task state belongs in the chosen folder. Later conversations read this pointer and reuse the folder without asking again. A missing or invalid pointer requires a folder choice; legacy `~/.codex/to-kanban/` data alone does not count as a choice.
+
+Change the saved location only on a user's request. Configuring another folder does not migrate or delete old data; ask about migration only if it is needed. `--state-dir` is a one-command override, not persistent setup, and must not bypass the first-use folder choice. If the chosen folder is inaccessible, report the issue rather than silently falling back.
+
+Put short-lived route inputs, summaries, live board payloads, plans and learning records under `<state-folder>/work/<unique-operation-id>/` to avoid mixing conversations. Do not create these in the research project by default.
 
 The bundled `scripts/kanban_context.py` owns:
 
@@ -40,7 +43,13 @@ Never put credentials, cookies, users, email addresses, authorization headers, o
 ## Bootstrap and refresh
 
 1. Locate and read the installed `planka-kanban/SKILL.md` before using its scripts.
-2. Initialize shared state:
+2. Read the location pointer. If it is missing or invalid, obtain the folder from the user first and remember it:
+
+```powershell
+py <to-kanban-skill>/scripts/kanban_context.py configure --path "<absolute-folder>"
+```
+
+Then initialize shared state in the configured folder:
 
 ```powershell
 py <to-kanban-skill>/scripts/kanban_context.py init

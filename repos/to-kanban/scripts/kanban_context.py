@@ -79,10 +79,32 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def state_root() -> Path:
+def location_config_path() -> Path:
     codex_home = os.environ.get("CODEX_HOME")
     root = Path(codex_home).expanduser() if codex_home else Path.home() / ".codex"
-    return root / "to-kanban"
+    return root / "to-kanban-location.json"
+
+
+def state_root() -> Path:
+    config = location_config_path()
+    if not config.exists():
+        raise ContextError("State directory is not configured. Ask the user for an absolute local folder, then run configure --path <folder>.")
+    raw = load_json(config)
+    value = raw.get("stateDir") if isinstance(raw, dict) else None
+    if not isinstance(value, str) or not value.strip() or not Path(value).is_absolute():
+        raise ContextError(f"Invalid stateDir in {config}; configure an absolute local folder")
+    return Path(value)
+
+
+def configure_state(path: Path) -> Path:
+    path = path.expanduser()
+    if not path.is_absolute():
+        raise ContextError("State directory must be an absolute local folder")
+    path = path.resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    load_memory(path / "memory.json")
+    atomic_write_json(location_config_path(), {"stateDir": str(path)})
+    return path
 
 
 def state_paths(root: Path | None = None) -> dict[str, Path]:
@@ -639,8 +661,12 @@ def write_or_print(payload: Any, output: Path | None) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--state-dir", type=Path, help="Override the global $CODEX_HOME/to-kanban state directory")
+    parser.add_argument("--state-dir", type=Path, help="Use an explicit state directory for this invocation; does not remember it")
     sub = parser.add_subparsers(required=True)
+
+    command = sub.add_parser("configure", help="Remember the user-selected local state folder")
+    command.add_argument("--path", type=Path, required=True)
+    command.set_defaults(action="configure")
 
     command = sub.add_parser("init", help="Create the global personalization memory if missing")
     command.set_defaults(action="init")
@@ -670,8 +696,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    paths = state_paths(args.state_dir)
     try:
+        if args.action == "configure":
+            selected = configure_state(args.path)
+            write_or_print({"stateDir": str(selected), "locationConfig": str(location_config_path())}, None)
+            return 0
+        paths = state_paths(args.state_dir)
         memory = load_memory(paths["memory"])
         if args.action == "init":
             write_or_print({key: str(value) for key, value in paths.items()}, None)
@@ -727,7 +757,7 @@ def main(argv: list[str] | None = None) -> int:
                 None,
             )
         return 0
-    except ContextError as exc:
+    except (ContextError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
