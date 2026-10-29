@@ -1,6 +1,6 @@
 ---
 name: to-kanban
-description: Turn the current Codex conversation into clear, independently deliverable Planka work items or verified task updates; infer the destination board and list from shared routing state, preview all writes, and sync through planka-kanban after confirmation. Use when the user explicitly invokes $to-kanban or asks to rewrite, organize, or send the current conversation to Kanban without naming a board.
+description: Turn the current Codex conversation into coherent outcome-level Planka work items or verified task updates; infer the destination board and list from shared routing state, preview all writes, and sync through planka-kanban after confirmation. Use when the user explicitly invokes $to-kanban or asks to rewrite, organize, or send the current conversation to Kanban without naming a board.
 ---
 
 # To Kanban
@@ -71,16 +71,17 @@ py <to-kanban-skill>/scripts/kanban_context.py refresh
 
 ## 1. Design Kanban-quality work items
 
-Before routing or matching cards, rewrite the conversation into work items. Do not copy a project outline directly into cards.
+Default to one card per user-valued outcome or stage goal. First identify the goal and route to its board, read existing cards, and match the current work before rewriting titles or considering new cards. Progress, rework, additional figures and next steps for the same goal normally update the existing card by `cardId`.
 
-Use these mandatory rules for every new actionable card:
+1. Keep preparation, analysis, comparison, decisions, figures and reporting together when they serve one outcome. Several files, attachments, acceptance checks or internal dependencies do not by themselves justify separate cards.
+2. Split only when BOTH are true: each part has independent value (it can be delivered or cancelled independently), AND there is an actual need to schedule its owner, priority, delivery date or workflow state separately. Collaboration alone is insufficient.
+3. Execution steps may include intellectual work and decisions, not just mechanical actions. Track useful milestones, not every command or verification action. Keep internal ordering in the checklist; reserve card dependencies for real prerequisites between separately managed outcomes.
+4. Write titles as action + outcome + scope. Preserve concrete source details in the description. Use as few outcome-based acceptance criteria as needed; one is enough for a simple task. Do not invent missing criteria.
+5. Ordinary capture/closeout defaults to 0–1 new cards. Multiple independent goals may justify more. More than three new cards requires a merge review and `batchReason` explaining the batch; this is not a quota or a reason to hide requested work.
 
-1. Make one card represent one independently reviewable outcome. Split work when parts can be accepted separately, have different dependencies or states, need separate discussion or attachments, or could be pulled by different people.
-2. Write the title as `action + deliverable + scope`. Prefer `完成三个代表工况的 UIV 主视觉图`; reject topic-only or vague titles such as `UIV 分析`, `处理论文`, or `继续修改`.
-3. Preserve concrete values from the source conversation. Include named methods, dimensions, parameter conventions, case counts, figure roles, and other details needed to understand the card without reopening the transcript.
-4. Give each card one concise goal, one concrete deliverable, binary acceptance criteria, and explicit dependencies. Write `无` when there is no prerequisite.
-5. Use execution steps only for mechanical actions inside the same deliverable. Promote a step to its own card when it needs a separate owner, state, decision, artifact, attachment, dependency, or acceptance.
-6. Keep background knowledge out of the title and acceptance list. Put only the minimum task-specific context in the goal and deliverable.
+The compiler validates explicit grouping and split reasons; it cannot infer semantic independence from prose. If it rejects a split, combine the input records into one coherent card before recompiling. Do not invent different goal IDs to bypass the check or merge incompatible states/evidence mechanically.
+
+Example: “完成三个工况的 UIV 分析并判断是否适合作为论文主图” is one card, with data preparation, plotting, comparison and the decision as steps. Data, figures and a conclusion are one deliverable package. “统一参数定义” becomes separate only if it independently serves other tasks and actually needs separate scheduling.
 
 Use this card shape:
 
@@ -93,10 +94,10 @@ Acceptance criteria:
 - <observable pass/fail condition>
 Dependencies:
 - <card title or external prerequisite; use 无 when empty>
-Execution steps: <optional mechanical checklist>
+Execution steps: <optional key milestones, including analysis and decisions>
 ```
 
-Prefer 2-6 acceptance criteria. If a card needs many unrelated criteria or produces several independently reviewable artifacts, split it. Acceptance criteria define done; execution steps describe how to get there. Do not mix them.
+Use concise acceptance criteria for the agreed outcome. Review unrelated goals using the two-part split test above; multiple artifacts alone are not a split trigger. Acceptance criteria define done; execution steps describe how to get there. Do not mix them.
 
 Order proposed cards by dependency and identify the smallest pullable set. Never move downstream cards into `in_progress` while an unresolved prerequisite blocks them.
 
@@ -104,22 +105,33 @@ Order proposed cards by dependency and identify the smallest pullable set. Never
 
 Choose one of two modes:
 
-- Quick capture: create one new `inbox` from the current conversation. Set `primaryNextTask` to `null`.
-- Closeout: split independent objectives into task records, update matched cards, and optionally sync one highest-priority next task.
+- Quick capture: update a matching existing card at its verified current state, or create one new `inbox` if no match exists. Set `primaryNextTask` to `null`.
+- Closeout: group work by existing goal, update matched cards, and add only independently justified new outcomes. The next step normally stays on its parent card.
 
 Each task record contains:
 
 - required `title`, `status`, `summary`; `deliverable` and `acceptanceCriteria[]` are required outside inbox;
-- `dependencies[]` and optional mechanical `steps[]`;
+- `dependencies[]` and optional milestone `steps[]`;
 - closeout evidence in `completed[]`, `artifacts[]`, and `openItems[]`;
 - optional `cardId` for a verified existing-card match.
 
-For an existing legacy card, reconstruct missing structured fields from the current conversation before preview. For every proposed new card outside inbox, `deliverable` and at least one acceptance criterion are compiler-enforced. A new `primaryNextTask` uses the same fields; reserve `relationship: "continuation"` for a mechanical next step that remains inside its parent card.
+For an existing legacy card, reconstruct missing structured fields from the current conversation before preview. For every proposed new card outside inbox, `deliverable` and at least one acceptance criterion are compiler-enforced. A new `primaryNextTask` uses the same fields; use `relationship: "continuation"` for any next step within the same goal, including analysis, revision or decision-making. A `relationship: "new"` candidate is matched through the normal card identity path; if it already exists, its live state is retained without re-publishing it.
+
+Identity and grouping fields:
+
+- `goalId`: stable user-goal identifier, shared by records belonging to the same goal. Reuse it across conversations; do not derive a new ID from each rewritten title.
+- `taskKey`: stable part identifier only when an independently justified split needs several cards under one goal. Otherwise identity uses `goalId` (legacy single records fall back to normalized title). Identity is scoped to board and the exact sorted `workspaceMarkers`; reuse these markers on retries.
+- `newCardReason`: why the requested outcome is not covered by an existing card. Supply it for every proposed new card; the compiler requires it and `goalId` whenever more than one card would be created.
+- `independentValue` and `splitReason`: required on every part when several records share a goal. Explain the independent value and actual separate scheduling need respectively; each part also needs a distinct `taskKey`.
+- Summary-level `operationId`: a unique identifier for this logical update. Save and reuse the same input and ID on retries, including after a lost response; use a new ID for a substantive new update. If omitted, the compiler hashes the original normalized input rather than live matched IDs.
+- Summary-level `batchReason`: required after a merge review when more than three new cards remain. `tasks: []` with no next task is a valid no-op when nothing needs syncing.
 
 Use this JSON shape for a proposed card:
 
 ```json
 {
+  "goalId": "uiv-three-case-main-figure",
+  "newCardReason": "现有卡片尚未覆盖三工况主图及选图结论",
   "title": "完成三个代表工况的 UIV 主视觉图",
   "status": "inbox",
   "summary": "用一张图证明 UIV 能解析二维流动结构。",
@@ -182,8 +194,11 @@ Selection input is `{"boardId":"...","listId":"...","status":"todo"}`. Never res
 Fetch a fresh live payload for the selected board before card matching. Match an existing card only by:
 
 1. explicit `cardId`;
-2. one exact title;
-3. one normalized title with an exact workspace marker.
+2. one persisted `[kanban-item:<key>]` identity marker derived from `taskKey` or `goalId`;
+3. one exact title;
+4. one normalized title with an exact workspace marker.
+
+For legacy cards without an identity marker, inspect their scope before drafting. When the goal is clearly the same despite different wording, carry its verified `cardId`; do not use fuzzy matching to mutate an uncertain card. Retain established goal IDs and workspace markers in saved operation inputs.
 
 Multiple matches are an error. A non-matching quick capture becomes a new card.
 
@@ -196,7 +211,7 @@ py <to-kanban-skill>/scripts/compile_plan.py `
   --output <planka-plan.json>
 ```
 
-The default configuration is the inferred `current-route.json`; the default offline board is `current-board.json`. Supply a fresh live board for write plans; the compiler re-reads its shared WIP policy rather than trusting cached/local policy values. `compile_plan.py` emits operations accepted by `planka_cli.py apply-plan`, uses stable `[to-kanban:<hash>]` markers and `append-once` comments, and supports partial list mappings when only a quick `inbox` capture is needed. For a new card it writes the goal, deliverable, and dependencies into the description; writes acceptance criteria into an `验收条件` task list; and, when present, writes mechanical steps into the configured execution task list.
+The default configuration is the inferred `current-route.json`; the default offline board is `current-board.json`. Supply a fresh live board for write plans; the compiler re-reads its shared WIP policy rather than trusting cached/local policy values. `compile_plan.py` emits operations accepted by `planka_cli.py apply-plan`, uses stable `[to-kanban:<hash>]` markers and `append-once` comments, and supports partial list mappings when only a quick `inbox` capture is needed. For a new card it writes the goal, deliverable, and dependencies into the description; writes acceptance criteria into an `验收条件` task list; and, when present, writes key execution milestones into the configured execution task list.
 
 ## 5. Preview and confirm
 
@@ -206,7 +221,7 @@ Run:
 py <planka-kanban-skill>/scripts/planka_cli.py apply-plan --file <planka-plan.json> --dry-run
 ```
 
-Show every proposed card with its goal, deliverable, acceptance criteria, dependencies, source and target list, checklist completion/addition, comment summary, and whether it is new or matched. Also show WIP before/after, configured limit, source policy card ID/fingerprint, flow warnings, evidence references, and the proposed pull order and cards held by prerequisites. Ask for confirmation. Do not perform the first write in the same turn as the first preview.
+Show the new/update counts and the reasons for any split, then every proposed card with its goal, deliverable, acceptance criteria, dependencies, source and target list, checklist completion/addition, comment summary, and whether it is new or matched. Also show WIP before/after, configured limit, source policy card ID/fingerprint, flow warnings, evidence references, and the proposed pull order and cards held by prerequisites. Ask for confirmation. Do not perform the first write in the same turn as the first preview.
 
 After confirmation, refresh the offline snapshot, reroute, fetch the selected board live, recompile, and dry-run again. If the destination, card IDs, target lists, or actions changed, show a revised preview and stop for reconfirmation.
 
@@ -224,7 +239,7 @@ Learning input contains `title`, optional `summary`, `status`, optional `workspa
 
 If a flow check fails, revise the proposal (for example retain an unready item in inbox) rather than bypassing the compiler. A prerequisite completed in this plan must be applied and verified before compiling a dependent ready/start operation.
 
-Run `refresh` once more so the offline board reflects the verified write. If `apply-plan` partially fails, report `completedSteps` and `failedStep`; do not blindly replay completed operations and do not learn a failed route as successful.
+Run `refresh` once more so the offline board reflects the verified write. A sequential retry reuses stable card identity across title/list changes; concurrent create requests are not protected by a server-side uniqueness lock. Re-read and reconcile after an uncertain outcome rather than launching parallel retries. If `apply-plan` partially fails, report `completedSteps` and `failedStep`; do not blindly replay completed operations and do not learn a failed route as successful.
 
 ## Final report
 

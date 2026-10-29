@@ -71,6 +71,8 @@ Supported publish spec fields:
   "list": "target list name, created if missing",
   "listId": "optional target list id",
   "title": "required card title",
+  "cardId": "optional verified existing card id",
+  "workItemKey": "optional stable logical task key, reused on retries",
   "description": "optional markdown description",
   "type": "project",
   "taskList": "task list title",
@@ -86,8 +88,9 @@ Behavior:
 - Creates a missing board only when `createBoardIfMissing` is true. Board creation uses `POST /api/projects/{projectId}/boards` and requires project-manager permission.
 - Creates the target list if it does not exist.
 - Uses `type: "project"` by default, because `story` cards do not render task lists.
-- Avoids duplicate cards when an exact title already exists in the target list; updates the existing target-list card unless `--no-update-existing` is set.
-- Does not update same-title cards in other lists unless `moveExistingToTargetList: true` is explicitly set.
+- Resolves an explicit `cardId`, then the persisted `[kanban-item:<workItemKey>]` description marker, then a unique exact title across the board. Missing explicit IDs and ambiguous or conflicting identities fail instead of creating a replacement. Existing names are retained when targeting by ID/key.
+- Writes the identity marker with card creation and preserves it on description edits, so sequential retries can reuse a renamed card after a lost response. This is not a concurrent-create uniqueness lock.
+- A match in another list requires `moveExistingToTargetList: true`; otherwise publishing stops before card updates instead of creating a duplicate.
 - Creates one task list by name and adds only missing checklist items by exact text.
 - Re-fetches the card after publishing and verifies the requested checklist items are present.
 - Supports `--dry-run` to show planned writes without modifying Planka.

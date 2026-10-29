@@ -26,9 +26,10 @@ STATUS_LABELS = {
     "review": "等验收",
     "done": "已完成",
 }
-SUMMARY_KEYS = {"tasks", "primaryNextTask", "workspaceMarkers"}
+SUMMARY_KEYS = {"tasks", "primaryNextTask", "workspaceMarkers", "operationId", "batchReason"}
 CONFIG_KEYS = {"boardId", "lists", "taskListName", "acceptanceListName", "wipLimit", "wipLists", "policySource"}
 TASK_KEYS = {
+    "goalId", "taskKey", "newCardReason", "independentValue", "splitReason", "dueDate",
     "intent", "evidence", "dependencyEvidence",
     "title",
     "status",
@@ -43,6 +44,7 @@ TASK_KEYS = {
     "cardId",
 }
 NEXT_KEYS = {
+    "goalId", "taskKey", "newCardReason", "independentValue", "splitReason", "cardId",
     "dependencyEvidence",
     "title",
     "relationship",
@@ -229,6 +231,13 @@ def resolve_card_id(
             raise ValidationError(f"task {task['title']!r} cardId {explicit!r} was not found exactly once")
         return explicit, "explicit_id", matches[0]["name"]
 
+    marker = f"[kanban-item:{task['_itemKey']}]" if task.get('_itemKey') else None
+    keyed = [card for card in cards if marker and marker in (card.get('description') or '')]
+    if len(keyed) > 1:
+        raise ValidationError("multiple cards share a work item key; resolve duplicates before writing")
+    if keyed:
+        return keyed[0]['id'], 'work_item_key', keyed[0]['name']
+
     exact = [card for card in cards if card["name"] == task["title"]]
     if len(exact) == 1:
         return exact[0]["id"], "exact_title", exact[0]["name"]
@@ -249,8 +258,8 @@ def validate_summary(raw: Any) -> dict[str, Any]:
     summary = require_object(raw, "summary")
     reject_unknown_keys(summary, SUMMARY_KEYS, "summary")
     raw_tasks = summary.get("tasks")
-    if not isinstance(raw_tasks, list) or not raw_tasks:
-        raise ValidationError("summary.tasks must be a non-empty array")
+    if not isinstance(raw_tasks, list):
+        raise ValidationError("summary.tasks must be an array")
 
     tasks = []
     titles = set()
@@ -266,6 +275,8 @@ def validate_summary(raw: Any) -> dict[str, Any]:
             raise ValidationError(f"summary.tasks[{index}].status must be one of {', '.join(STATUSES)}")
         tasks.append(
             {
+                **{key: optional_string(task.get(key), key) for key in
+                   ('goalId', 'taskKey', 'newCardReason', 'independentValue', 'splitReason', 'dueDate')},
                 "intent": task.get("intent", "propose"),
                 "evidence": evidence_map(task.get("evidence"), "evidence"),
                 "dependencyEvidence": evidence_map(task.get("dependencyEvidence"), "dependencyEvidence"),
@@ -293,6 +304,8 @@ def validate_summary(raw: Any) -> dict[str, Any]:
     if raw_next_task is None:
         normalized_next = None
         return {
+            'operationId': optional_string(summary.get('operationId'), 'operationId'),
+            'batchReason': optional_string(summary.get('batchReason'), 'batchReason'),
             "tasks": tasks,
             "primaryNextTask": normalized_next,
             "workspaceMarkers": string_list(summary.get("workspaceMarkers"), "summary.workspaceMarkers"),
@@ -310,6 +323,8 @@ def validate_summary(raw: Any) -> dict[str, Any]:
         raise ValidationError("a new primaryNextTask must not set parentTaskTitle")
 
     normalized_next = {
+        **{key: optional_string(next_task.get(key), key) for key in
+           ('goalId', 'taskKey', 'newCardReason', 'independentValue', 'splitReason', 'cardId')},
         "title": require_string(next_task.get("title"), "summary.primaryNextTask.title"),
         "dependencyEvidence": evidence_map(next_task.get("dependencyEvidence"), "dependencyEvidence"),
         "relationship": relationship,
@@ -326,6 +341,8 @@ def validate_summary(raw: Any) -> dict[str, Any]:
         "dueDate": optional_string(next_task.get("dueDate"), "summary.primaryNextTask.dueDate"),
     }
     return {
+        'operationId': optional_string(summary.get('operationId'), 'operationId'),
+        'batchReason': optional_string(summary.get('batchReason'), 'batchReason'),
         "tasks": tasks,
         "primaryNextTask": normalized_next,
         "workspaceMarkers": string_list(summary.get("workspaceMarkers"), "summary.workspaceMarkers"),
@@ -333,9 +350,36 @@ def validate_summary(raw: Any) -> dict[str, Any]:
 
 
 def stable_update_id(config: dict[str, Any], summary: dict[str, Any]) -> str:
+    # Use the original normalized input, never resolved IDs or live acceptance state.
     payload = {"boardId": config["boardId"], "summary": summary}
+    if summary.get('operationId'):
+        payload = {'boardId': config['boardId'], 'operationId': summary['operationId']}
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+
+
+def item_key(config, task, workspace_markers):
+    identity = [task.get('goalId') or normalize_title(task['title']), task.get('taskKey')]
+    payload = [config['boardId'], sorted(set(workspace_markers)), identity]
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode('utf-8')).hexdigest()[:24]
+
+
+def validate_granularity(tasks, batch_reason):
+    """Reject unsupported splits; never guess how to merge states or evidence."""
+    groups = {}
+    for task in tasks:
+        groups.setdefault(task.get('goalId') or task['title'], []).append(task)
+    for group in groups.values():
+        if len(group) > 1 and any(not all(t.get(k) for k in
+                ('taskKey', 'independentValue', 'splitReason')) for t in group):
+            raise ValidationError('same goal must stay in one card; a split requires taskKey, independentValue and splitReason for each part')
+    new = [t for t in tasks if not t.get('cardId')]
+    if len(new) > 1 and any(not t.get('goalId') or not t.get('newCardReason') for t in new):
+        raise ValidationError('multiple new cards require goalId and newCardReason; merge steps into the existing goal first')
+    if len(new) > 3 and not batch_reason:
+        raise ValidationError('more than three new cards requires batchReason after a merge review')
+    return {'newCardCount': len(new), 'updatedCardCount': len(tasks) - len(new),
+            'batchReason': batch_reason}
 
 
 def bullet_section(label: str, values: list[str]) -> list[str]:
@@ -391,6 +435,7 @@ def card_reference(config: dict[str, Any], task: dict[str, Any]) -> dict[str, An
         return {"boardId": config["boardId"], "cardId": task["cardId"]}
     return {
         "boardId": config["boardId"],
+        "workItemKey": task.get('_itemKey'),
         "title": task["title"],
         "sourceList": config["lists"][task["status"]],
     }
@@ -495,9 +540,17 @@ def validate_flow(config, summary, board):
 
 def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None) -> dict[str, Any]:
     summary = validate_summary(summary_raw)
+    update_id = stable_update_id(config_raw, summary)
+    next_preview = deepcopy(summary['primaryNextTask'])
+    if next_preview and next_preview['relationship'] == 'new':
+        # Match next work through the same path as every other task.
+        next_record = {k: v for k, v in next_preview.items() if k in TASK_KEYS}
+        next_record.update(status='todo', summary=next_record.get('summary') or next_record['title'])
+        normalized = validate_summary({'tasks': [next_record]})['tasks'][0]
+        normalized['_nextCandidate'] = True
+        summary['tasks'].append(normalized)
+        summary['primaryNextTask'] = None
     required_statuses = {task["status"] for task in summary["tasks"]}
-    if summary["primaryNextTask"] and summary["primaryNextTask"]["relationship"] == "new":
-        required_statuses.add("todo")
     try:
         remote = read_board_policy(board_raw) if board_raw is not None else {"wipLimit": None, "wipLists": [], "policySource": {"kind": "missing"}}
     except PolicyError as exc:
@@ -511,10 +564,32 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
     if any(t.get("cardId") in policy_ids or t["title"].startswith("[kanban-policy:") for t in resolved["tasks"]):
         raise ValidationError("Policy cards cannot be treated as work items")
     for task in resolved["tasks"]:
+        task['_itemKey'] = item_key(config, task, resolved['workspaceMarkers'])
         if board is not None:
             card_id, matched_by, matched_card_title = resolve_card_id(task, cards, resolved["workspaceMarkers"])
             task["cardId"] = card_id
             task["_matchedCardTitle"] = matched_card_title
+            task['_matchedBy'] = matched_by
+            if card_id and task.get('_nextCandidate'):
+                live = next(c for c in cards if c['id'] == card_id)
+                live_list = next((x['name'] for x in board['included']['lists'] if x['id'] == live.get('listId')), None)
+                live_status = next((role for role, name in config['lists'].items() if name == live_list), None)
+                if live_status is None:
+                    raise ValidationError('matched next task has an unmapped live state; update it explicitly')
+                # A recommendation must not rewind work that is already started/done.
+                task['status'] = live_status
+                task['_skipNextUpdate'] = True
+                if matched_by == 'work_item_key' and live_status == 'todo':
+                    included = board.get('included', {})
+                    lists_by_name = {x['name']: x['id'] for x in included.get('taskLists', [])
+                                     if x.get('cardId') == card_id}
+                    for list_name, names in ((config['acceptanceListName'], task['acceptanceCriteria']),
+                                             (config['taskListName'], task['steps'])):
+                        present = {x['name'] for x in included.get('tasks', [])
+                                   if x.get('taskListId') == lists_by_name.get(list_name)}
+                        if set(names) - present:
+                            # Repair an interrupted publish of this exact next-task identity.
+                            task['_skipNextUpdate'] = False
         else:
             matched_by = "explicit_id" if task.get("cardId") else "proposed_create"
             matched_card_title = task["title"] if task.get("cardId") else None
@@ -531,21 +606,31 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 "willCreate": task.get("cardId") is None,
                 "targetList": config["lists"][task["status"]],
                 "status": task["status"],
+                "goalId": task.get('goalId'),
+                "newCardReason": task.get('newCardReason'),
+                "splitReason": task.get('splitReason'),
+                "independentValue": task.get('independentValue'),
             }
         )
 
     for index, task in enumerate(resolved["tasks"]):
         if task.get("cardId") is None:
             validate_actionable_card(task, f"summary.tasks[{index}]")
-    if resolved["primaryNextTask"] and resolved["primaryNextTask"]["relationship"] == "new":
-        validate_actionable_card(resolved["primaryNextTask"], "summary.primaryNextTask")
 
-    flow = validate_flow(config, resolved, board)
-    update_id = stable_update_id(config, resolved)
+    actionable = [t for t in resolved['tasks'] if not t.get('_skipNextUpdate')]
+    granularity = validate_granularity(actionable, resolved.get('batchReason'))
+    keys = [t['_itemKey'] for t in actionable]
+    if len(keys) != len(set(keys)):
+        raise ValidationError('duplicate work item identity; combine records for the same task')
+    # Existing recommendations are informational; no completion or state mutation.
+    flow_summary = {**resolved, 'tasks': [t for t in resolved['tasks'] if not t.get('_skipNextUpdate')]}
+    flow = validate_flow(config, flow_summary, board)
     operations: list[dict[str, Any]] = []
     next_task = resolved["primaryNextTask"]
 
     for task in resolved["tasks"]:
+        if task.get('_skipNextUpdate'):
+            continue
         target_list = config["lists"][task["status"]]
         continuation = bool(
             next_task
@@ -555,6 +640,20 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
         comment = task_comment(task, update_id, next_task)
 
         if task.get("cardId"):
+            if task.get('_matchedBy') == 'work_item_key':
+                # A lost create response may leave a card without its checklists.
+                included = board.get('included', {})
+                acceptance_lists = {x['id'] for x in included.get('taskLists', [])
+                                    if x.get('cardId') == task['cardId'] and x.get('name') == config['acceptanceListName']}
+                existing_names = {x['name'] for x in included.get('tasks', []) if x.get('taskListId') in acceptance_lists}
+                missing = [name for name in task['acceptanceCriteria'] if name not in existing_names]
+                if missing:
+                    operations.append({'action': 'publish-card', 'boardId': config['boardId'],
+                        'cardId': task['cardId'], 'title': task['_matchedCardTitle'],
+                        'list': target_list, 'type': 'project', 'taskList': config['acceptanceListName'],
+                        'tasks': missing, 'moveExistingToTargetList': True})
+                    if task['status'] == 'done':
+                        task['_completeNames'] = list(dict.fromkeys(task['_completeNames'] + missing))
             complete_operation: dict[str, Any] = {
                 "action": "complete-card",
                 "boardId": config["boardId"],
@@ -567,16 +666,20 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 complete_operation["completeTasks"] = task["_completeNames"]
                 complete_operation["evidence"] = task["evidence"]
             operations.append(complete_operation)
+            execution_steps = list(task.get('steps') or [])
             if continuation:
+                execution_steps.append(next_task['title'])
+            if execution_steps:
                 operations.append(
                     {
                         "action": "publish-card",
                         "boardId": config["boardId"],
                         "list": target_list,
                         "title": task.get("_matchedCardTitle") or task["title"],
+                        "cardId": task['cardId'],
                         "type": "project",
                         "taskList": config["taskListName"],
-                        "tasks": [next_task["title"]],
+                        "tasks": list(dict.fromkeys(execution_steps)),
                         "moveExistingToTargetList": True,
                     }
                 )
@@ -586,12 +689,15 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                 "boardId": config["boardId"],
                 "list": target_list,
                 "title": task["title"],
+                "workItemKey": task['_itemKey'],
                 "description": work_item_description(task),
                 "type": "project",
                 "taskList": config["acceptanceListName"],
                 "tasks": task["acceptanceCriteria"],
                 "moveExistingToTargetList": True,
             }
+            if task.get('dueDate'):
+                publish_operation['dueDate'] = task['dueDate']
             operations.append(publish_operation)
             execution_steps = list(task.get("steps") or [])
             if continuation:
@@ -603,6 +709,7 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                         "boardId": config["boardId"],
                         "list": target_list,
                         "title": task["title"],
+                        "workItemKey": task['_itemKey'],
                         "type": "project",
                         "taskList": config["taskListName"],
                         "tasks": execution_steps,
@@ -622,43 +729,15 @@ def compile_plan(config_raw: Any, summary_raw: Any, board_raw: Any | None = None
                     }
                 )
 
-    if next_task and next_task["relationship"] == "new":
-        next_publish: dict[str, Any] = {
-            "action": "publish-card",
-            "boardId": config["boardId"],
-            "list": config["lists"]["todo"],
-            "title": next_task["title"],
-            "description": work_item_description(next_task),
-            "type": "project",
-            "taskList": config["acceptanceListName"],
-            "tasks": next_task["acceptanceCriteria"],
-            "moveExistingToTargetList": True,
-        }
-        if next_task["dueDate"]:
-            next_publish["dueDate"] = next_task["dueDate"]
-        operations.append(next_publish)
-        if next_task["steps"]:
-            operations.append(
-                {
-                    "action": "publish-card",
-                    "boardId": config["boardId"],
-                    "list": config["lists"]["todo"],
-                    "title": next_task["title"],
-                    "type": "project",
-                    "taskList": config["taskListName"],
-                    "tasks": next_task["steps"],
-                    "moveExistingToTargetList": True,
-                }
-            )
-
     return {
         "metadata": {
-            "schemaVersion": 4,
+            "schemaVersion": 5,
+            "granularity": granularity,
             "flow": flow,
             "updateId": update_id,
             "boardId": config["boardId"],
             "taskMatches": match_preview,
-            "primaryNextTask": next_task,
+            "primaryNextTask": next_preview,
         },
         "operations": operations,
     }

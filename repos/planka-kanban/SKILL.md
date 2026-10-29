@@ -9,7 +9,7 @@ Use the PLANKA REST API instead of browser automation. Keep credentials out of c
 
 ## Workflow and evidence boundaries
 
-This skill is the API execution layer. For conversation capture, readiness, WIP and dependency decisions, use `to-kanban` and its compiler. Direct user-directed edits remain supported; before proposing a new start, read the agreed board capacity and dependencies, and apply the same checks. Do not use raw move/publish commands to bypass a failed flow check.
+This skill is the API execution layer. `to-kanban` owns task granularity: default to a coherent outcome, update existing cards first, and split only for independent value plus an actual separate scheduling need. Do not split a supplied plan again because it has several steps, figures or attachments. For direct user edits, preserve the requested card scope. For conversation capture, readiness, WIP and dependency decisions, use `to-kanban` and its compiler. Direct user-directed edits remain supported; before proposing a new start, read the agreed board capacity and dependencies, and apply the same checks. Do not use raw move/publish commands to bypass a failed flow check.
 
 - Distinguish inbox (unclarified/unready) from ready todo. Do not infer readiness solely from a title or manufacture missing acceptance conditions.
 - Count started work waiting for feedback or review in WIP. Record already-observed work honestly even when over capacity, reporting the violation; do not use this exception to initiate more work.
@@ -143,7 +143,13 @@ python scripts/planka_cli.py apply-plan --file plan.json --dry-run
 python scripts/planka_cli.py apply-plan --file plan.json
 ```
 
-`apply-plan` stops at the first failed operation and reports completed steps plus the failed step, so a retry can start from a known state.
+`apply-plan` stops at the first failed operation and reports completed steps plus the failed step, so a retry can start from a known state. Empty operation arrays are valid no-ops.
+
+For stable publishing, `publish-card` accepts `cardId` for an existing card or `workItemKey` for a new logical task. It resolves ID, then the exact `[kanban-item:<key>]` description marker, then a unique title across the board. A missing explicit ID, duplicate identity, or conflicting keyed title fails instead of creating a replacement. The identity marker is written in the same request as card creation, so a retry after a lost response can reuse the card even after a rename or list move. Preserve the same key on every operation/retry; do not generate one per API call. Existing card names are retained when targeting by ID/key. Description edits preserve existing identity markers.
+
+Publishing a matched card in another list requires `moveExistingToTargetList: true`; otherwise it stops before writing, rather than creating a duplicate. For checklist updates on known cards, pass `cardId`. Repeated checklist entries are reused by name. Comments starting with a compiler `[to-kanban:<hash>]` marker are deduplicated by that operation marker per card; reuse it only for retries of the same logical update.
+
+These guarantees cover sequential retries against fresh state, not concurrent first creates by independent clients. After an uncertain write, fetch state and reconcile before retrying. Do not replay a previously approved start if state or WIP changed; recompile.
 
 To create a new board/page while publishing, include `project` or `projectId`, `board`, and `createBoardIfMissing: true`. Board creation requires PLANKA project-manager permission:
 

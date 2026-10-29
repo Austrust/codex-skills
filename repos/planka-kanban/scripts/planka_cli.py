@@ -7,6 +7,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -427,6 +428,11 @@ def resolve_card_reference(client: PlankaClient, spec: dict):
     project, board, _created_board, _planned_board_create = resolve_project_and_board(client, spec, dry_run=False)
     snapshot = client.request("GET", f"/api/boards/{urllib.parse.quote(board['id'])}")
     source_list = source_list_from_spec(snapshot, spec)
+    if spec.get('workItemKey'):
+        card, _ = resolve_publish_card(snapshot, board['id'], spec)
+        if not card:
+            raise SystemExit('Work item not found; refusing to complete a missing card')
+        return project, board, snapshot, card
     candidates = find_cards_by_title(snapshot, board["id"], title)
     if source_list:
         candidates = [card for card in candidates if card.get("listId") == source_list["id"]]
@@ -450,7 +456,41 @@ def comments_for_card(client: PlankaClient, card_id: str):
 
 
 def comment_text_exists(comments: list[dict], text: str):
+    marker = re.match(r'^\[to-kanban:[0-9a-f]+\]', text)
+    if marker:
+        return any((item.get('text') or '').startswith(marker.group(0) + '\n') for item in comments)
     return any(item.get("text") == text for item in comments)
+
+
+def resolve_publish_card(snapshot, board_id, spec):
+    """Identity survives renames, moves and a lost create response."""
+    cards = [c for c in snapshot.get('included', {}).get('cards', [])
+             if c.get('boardId', board_id) == board_id]
+    key = optional_string(spec, 'workItemKey')
+    if key and not re.fullmatch(r'[A-Za-z0-9._:-]{1,128}', key):
+        raise SystemExit('Invalid workItemKey')
+    marker = f'[kanban-item:{key}]' if key else None
+    keyed = [c for c in cards if marker and marker in (c.get('description') or '')]
+    if len(keyed) > 1:
+        raise SystemExit('Multiple cards share workItemKey; resolve duplicates first')
+    explicit = optional_string(spec, 'cardId')
+    if explicit:
+        matched = [c for c in cards if c['id'] == explicit]
+        if len(matched) != 1:
+            raise SystemExit('cardId must identify one card on the target board; refusing to create')
+        if keyed and keyed[0]['id'] != explicit:
+            raise SystemExit('cardId conflicts with workItemKey')
+        return matched[0], marker
+    if keyed:
+        return keyed[0], marker
+    matched = [c for c in cards if c.get('name') == spec['title']]
+    if len(matched) > 1:
+        raise SystemExit('Multiple cards match title; supply cardId')
+    if matched and marker:
+        old_keys = re.findall(r'\[kanban-item:([^\]]+)\]', matched[0].get('description') or '')
+        if old_keys and key not in old_keys:
+            raise SystemExit('Title belongs to a different workItemKey; resolve identity before writing')
+    return (matched[0] if matched else None), marker
 
 
 def summarize_card(client: PlankaClient, card_id: str, include_comments: bool = False):
@@ -633,13 +673,18 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
     same_title_elsewhere = [
         card for card in same_title_cards if target_list.get("id") and card.get("listId") != target_list.get("id")
     ]
-    existing_card = find_existing_card(
-        snapshot,
-        board["id"],
-        target_list.get("id"),
-        title,
-        allow_board_fallback=move_existing_to_target,
-    )
+    existing_card, identity_marker = resolve_publish_card(snapshot, board['id'], spec)
+    if existing_card and target_list.get('id') != existing_card.get('listId') and not move_existing_to_target:
+        raise SystemExit('Existing card is outside the target list; authorize its move or keep its current list')
+    if identity_marker:
+        description = description if description is not None else (existing_card or {}).get('description', '') or ''
+        if identity_marker not in description:
+            description = description.rstrip() + '\n\n' + identity_marker
+    # Retain established identity markers when a normal description edit occurs.
+    if description is not None and existing_card:
+        for marker in re.findall(r'\[kanban-item:[^\]]+\]', existing_card.get('description') or ''):
+            if marker not in description:
+                description += '\n\n' + marker
     planned_actions = []
 
     if dry_run:
@@ -649,7 +694,7 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
             planned_actions.append({"action": "create-list", "name": target_list["name"]})
         planned_actions.append(
             {
-                "action": "update-card" if existing_card and update_existing else "create-card",
+                "action": ("update-card" if update_existing else "reuse-card") if existing_card else "create-card",
                 "title": title,
                 "type": card_type,
                 "taskCount": len(tasks),
@@ -680,7 +725,7 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
 
     card_payload = {
         "type": card_type,
-        "name": title,
+        "name": existing_card['name'] if existing_card and (identity_marker or spec.get('cardId')) else title,
     }
     if description is not None:
         card_payload["description"] = description
@@ -771,6 +816,7 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
                 },
             )["item"]
             created_tasks.append(task)
+            existing_names.add(task_name)
 
     final_card = client.request("GET", f"/api/cards/{urllib.parse.quote(card['id'])}")
     final_task_lists = final_card.get("included", {}).get("taskLists", [])
@@ -1018,8 +1064,8 @@ def complete_card(client: PlankaClient, spec: dict, dry_run: bool = False):
 
 def apply_plan(client: PlankaClient, spec: dict, dry_run: bool = False):
     operations = spec.get("operations")
-    if not isinstance(operations, list) or not operations:
-        raise SystemExit("Plan spec requires a non-empty operations array")
+    if not isinstance(operations, list):
+        raise SystemExit("Plan spec requires an operations array")
 
     flow = spec.get("metadata", {}).get("flow", {})
     expected_source = flow.get("policySource")

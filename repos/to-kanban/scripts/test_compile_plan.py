@@ -35,6 +35,8 @@ def board(cards=None):
 
 def task(title="Implement feature", status="done", card_id=None):
     value = {
+        "goalId": title,
+        "newCardReason": "Separate requested outcome not covered by an existing card",
         "title": title,
         "intent": "record",
         "evidence": {f"{title} is reviewable": "Verified output and test result"},
@@ -55,6 +57,8 @@ def task(title="Implement feature", status="done", card_id=None):
 
 def new_next(title="Complete next output", steps=None):
     return {
+        "goalId": title,
+        "newCardReason": "Separate follow-up deliverable",
         "title": title,
         "relationship": "new",
         "summary": f"Produce the reviewable result for {title}.",

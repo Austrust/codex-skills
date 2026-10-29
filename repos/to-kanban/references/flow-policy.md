@@ -40,6 +40,8 @@ Use `planka_cli.py policy-read --board-id <id>` to inspect. To create/update the
 
 This version controls each board's WIP independently. Personal capacity shared across boards is a separate policy. Keep not-yet-started work with unmet prerequisites in inbox.
 
+Task identity, grouping and split fields are defined in [SKILL.md](../SKILL.md); only independently scheduled outcomes use card dependencies. Internal preparation, analysis and checking remain execution milestones.
+
 Task fields:
 
 - `intent`: `propose` (default) or `record` for already-observed work. Record still requires structured task content; it reports dependency/capacity violations and cannot bypass completion evidence.

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import unittest
+import tempfile
 from pathlib import Path
 
 from kanban_context import (
@@ -72,13 +73,9 @@ def snapshot_with_two_boards():
 
 class KanbanContextTests(unittest.TestCase):
     def state_directory(self, name):
-        root = Path(__file__).resolve().parents[1] / ".test-state"
-        path = root / name
-        path.mkdir(parents=True, exist_ok=True)
-        for child in path.iterdir():
-            if child.is_file():
-                child.unlink()
-        return path
+        directory = tempfile.TemporaryDirectory(prefix=f'kanban-{name}-')
+        self.addCleanup(directory.cleanup)
+        return Path(directory.name)
 
     def test_snapshot_keeps_routing_data_and_drops_users(self):
         snapshot = snapshot_with_two_boards()

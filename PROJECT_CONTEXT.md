@@ -1,6 +1,6 @@
 # Project Context and Handoff
 
-Updated: 2026-10-28
+Updated: 2026-10-29
 
 ## Current governance
 
@@ -34,6 +34,13 @@ mirrors preserve all old branches and tags. See
 - `to-kanban` is the conversation-facing layer over `planka-kanban`; its full
   contract is in `repos/to-kanban/SKILL.md`. Preserve dependency-first installation,
   live discovery, preview, idempotence, and post-write verification.
+- Kanban cards default to one user-valued outcome; analysis, figures and decisions
+  can stay in its checklist. Splits require independent value and an actual need
+  for separate scheduling. Match existing goals before drafting new cards.
+- Stable work-item markers preserve card identity across title changes and
+  sequential retries, including lost create responses. Keep operation IDs on
+  retries; new logical updates get new IDs. Concurrent first creates still need
+  reconciliation because the REST API has no uniqueness lock.
 - Kanban WIP rules are shared through a `[kanban-policy:v1]` card on each board.
   Local routing memory does not override them. Both Kanban skills must be updated
   together; see `repos/planka-kanban/references/shared-wip.md`. Inbox is capture,
