@@ -1,11 +1,27 @@
 ---
 name: planka-kanban
-description: Use for inspecting or editing PLANKA kanban boards through the REST API, including login/API-key authentication, reading projects/boards/lists/cards, creating and moving cards, editing labels/tasks/comments/custom fields, and safely handling Planka write operations without browser automation.
+description: Inspect and edit PLANKA Community 2.x and Pro 2.5.0 boards through REST, with separate edition guidance, common card workflows, and Pro search, dashboard, teams, templates and linked-card operations.
 ---
 
 # Planka Kanban
 
 Use the PLANKA REST API instead of browser automation. Keep credentials out of chat, logs, and files; prefer environment variables.
+
+## Edition routing
+
+Run `python scripts/planka_cli.py capabilities` on first use or after a server
+upgrade. Use [Community guidance](references/community.md) for Community 2.x;
+use [Pro 2.5.0 guidance](references/pro-2.5.md) for Pro. Common workflows below
+remain shared. Pro operations live in `scripts/planka_pro.py`, reached through
+`planka_cli.py pro --file operation.json --dry-run`; they are never sent to a
+Community server. Unknown versions are not automatically treated as Pro.
+`PLANKA_EDITION` optionally asserts the expected edition; it does not override
+live evidence. Read only the relevant edition reference.
+
+For Pro linked cards, resolve `linkedCardId` and intended source/placement scope
+before a write. Do not run common publish/complete flows on linked placements.
+Public sharing, permissions and recurring-task configuration are separate
+operations, not side effects of ordinary task capture.
 
 ## Workflow and evidence boundaries
 

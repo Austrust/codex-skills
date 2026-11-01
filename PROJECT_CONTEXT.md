@@ -1,6 +1,6 @@
 # Project Context and Handoff
 
-Updated: 2026-10-29
+Updated: 2026-11-01
 
 ## Current governance
 
@@ -55,6 +55,11 @@ mirrors preserve all old branches and tags. See
   Only its path is saved in `$CODEX_HOME/to-kanban-location.json` (or
   `~/.codex/to-kanban-location.json`); later invocations reuse that choice.
 - Planka accepts `PLANKA_BASE_URL` plus an API key or username/password.
+- Planka edition routing keeps Community 2.x common operations compatible and
+  isolates Pro 2.5.0 in `planka_pro.py`; `capabilities` checks live metadata.
+  `PLANKA_EDITION` is an optional expectation, not a capability override.
+  See `repos/planka-kanban/references/pro-2.5.md` for supported operations and
+  live/offline validation boundaries. `to-kanban` still emits common actions.
   Keep credential values, Bark device keys, notification URLs, live board exports,
   and conversation transcripts out of repository source and logs.
 - The user's historical Bark notification setup is account state. Verify before

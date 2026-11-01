@@ -7,6 +7,12 @@ description: Turn the current Codex conversation into coherent outcome-level Pla
 
 Treat this skill as the conversation-facing collection layer over `planka-kanban`. Infer where the work belongs, while delegating Planka authentication, reads, and writes to `planka-kanban`.
 
+After an instance upgrade, run planka-kanban `capabilities` and read its matching
+edition reference. The compiler continues to emit common card operations on
+Community 2.x and Pro 2.5.0. Pro template creation, linked placements and public
+sharing require their separate workflow; do not compile a linked card as an
+independent work item or update its source implicitly.
+
 ## Flow policy
 
 The maintained Chinese work-board order is 收集箱 / 待办 / 进行中 / 等外部 / 等验收 / 已完成 / 看板规则. `等外部` maps to `blocked`, and `等验收` to `review`; old names 等待反馈 and 待审核 remain supported aliases. WIP includes 进行中, 等外部 and 等验收, using the live policy's list IDs and board-specific limit. Read [references/flow-policy.md](references/flow-policy.md) for archive-only boards and cache refresh behavior.

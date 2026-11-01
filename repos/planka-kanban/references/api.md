@@ -1,5 +1,9 @@
 # PLANKA REST API Reference
 
+This is the shared Community 2.x / Pro common-workflow reference. Read
+[Community compatibility](community.md) or [Pro 2.5.0 operations](pro-2.5.md)
+after `capabilities`. Pro-only payloads do not belong in common commands.
+
 ## Official References
 
 - API reference entry point: https://docs.planka.cloud/docs/category/api-reference/

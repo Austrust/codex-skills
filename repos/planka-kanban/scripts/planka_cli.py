@@ -16,121 +16,7 @@ import uuid
 from board_policy import PolicyError, TITLE, policy_cards, read_board_policy, validate_policy, render_policy, wip_count
 
 
-SECRET_KEYS = {"password", "token", "apiKey", "api_key", "pendingToken", "Authorization"}
-
-
-class PlankaError(RuntimeError):
-    def __init__(self, status: int | None, message: str, body: object | None = None):
-        super().__init__(message)
-        self.status = status
-        self.body = body
-
-
-def redact(value):
-    if isinstance(value, dict):
-        return {k: ("<redacted>" if k in SECRET_KEYS else redact(v)) for k, v in value.items()}
-    if isinstance(value, list):
-        return [redact(v) for v in value]
-    return value
-
-
-def print_json(value):
-    print(json.dumps(redact(value), ensure_ascii=True, indent=2, sort_keys=True))
-
-
-def env(name: str, required: bool = True) -> str | None:
-    value = os.environ.get(name)
-    if required and not value:
-        raise SystemExit(f"Missing environment variable: {name}")
-    return value
-
-
-class PlankaClient:
-    def __init__(self, base_url: str, token: str | None = None):
-        self.base_url = base_url.rstrip("/")
-        self.token = token
-
-    def request(self, method: str, path: str, data: dict | None = None, token: str | None = None):
-        url = self.base_url + path
-        body = None
-        headers = {"Accept": "application/json"}
-        bearer = token if token is not None else self.token
-        if bearer:
-            headers["Authorization"] = f"Bearer {bearer}"
-        if data is not None:
-            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-            headers["Content-Type"] = "application/json; charset=utf-8"
-
-        req = urllib.request.Request(url, data=body, method=method.upper(), headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                raw = resp.read().decode("utf-8")
-                return json.loads(raw) if raw else None
-        except urllib.error.HTTPError as exc:
-            raw = exc.read().decode("utf-8", errors="replace")
-            try:
-                parsed = json.loads(raw) if raw else None
-            except json.JSONDecodeError:
-                parsed = raw
-            message = f"HTTP {exc.code}"
-            if isinstance(parsed, dict) and parsed.get("message"):
-                message += f": {parsed['message']}"
-            raise PlankaError(exc.code, message, parsed) from exc
-
-    def request_multipart(
-        self,
-        method: str,
-        path: str,
-        fields: dict,
-        token: str | None = None,
-    ):
-        boundary = f"----codex-planka-{uuid.uuid4().hex}"
-        chunks = []
-        for key, value in fields.items():
-            chunks.append(f"--{boundary}\r\n".encode("ascii"))
-            chunks.append(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("ascii"))
-            chunks.append(str(value).encode("utf-8"))
-            chunks.append(b"\r\n")
-        chunks.append(f"--{boundary}--\r\n".encode("ascii"))
-
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-        }
-        bearer = token if token is not None else self.token
-        if bearer:
-            headers["Authorization"] = f"Bearer {bearer}"
-
-        req = urllib.request.Request(
-            self.base_url + path,
-            data=b"".join(chunks),
-            method=method.upper(),
-            headers=headers,
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                raw = resp.read().decode("utf-8")
-                return json.loads(raw) if raw else None
-        except urllib.error.HTTPError as exc:
-            raw = exc.read().decode("utf-8", errors="replace")
-            try:
-                parsed = json.loads(raw) if raw else None
-            except json.JSONDecodeError:
-                parsed = raw
-            message = f"HTTP {exc.code}"
-            if isinstance(parsed, dict) and parsed.get("message"):
-                message += f": {parsed['message']}"
-            raise PlankaError(exc.code, message, parsed) from exc
-
-    def login(self, username: str, password: str):
-        payload = {
-            "emailOrUsername": username,
-            "password": password,
-            "withHttpOnlyToken": False,
-        }
-        data = self.request("POST", "/api/access-tokens", payload, token=None)
-        self.token = data["item"]
-        return self.token
+from planka_transport import PlankaClient, PlankaError, redact, print_json, env
 
 
 def decode_jwt_subject(token: str | None) -> str | None:
@@ -674,6 +560,8 @@ def publish_card(client: PlankaClient, spec: dict, dry_run: bool = False, update
         card for card in same_title_cards if target_list.get("id") and card.get("listId") != target_list.get("id")
     ]
     existing_card, identity_marker = resolve_publish_card(snapshot, board['id'], spec)
+    if existing_card and existing_card.get('linkedCardId'):
+        raise SystemExit('Linked placement: resolve canonical source and intended scope before publishing')
     if existing_card and target_list.get('id') != existing_card.get('listId') and not move_existing_to_target:
         raise SystemExit('Existing card is outside the target list; authorize its move or keep its current list')
     if identity_marker:
@@ -945,6 +833,8 @@ def complete_card(client: PlankaClient, spec: dict, dry_run: bool = False):
     _project, board, snapshot, card = resolve_card_reference(client, spec)
     card_snapshot = client.request("GET", f"/api/cards/{urllib.parse.quote(card['id'])}")
     card = card_snapshot["item"]
+    if card.get('linkedCardId'):
+        raise SystemExit('Linked placement: resolve canonical source and intended scope before completion')
     tasks = card_snapshot.get("included", {}).get("tasks", [])
     target_list = resolve_move_target_list(snapshot, spec)
     tasks_to_complete = requested_tasks_to_complete(spec, tasks)
@@ -1297,6 +1187,8 @@ def cmd_raw(args):
 def build_parser():
     parser = argparse.ArgumentParser(description="PLANKA REST API helper")
     sub = parser.add_subparsers(required=True)
+    from planka_editions import register_commands
+    register_commands(sub, make_client, print_json, load_json_arg)
 
     p = sub.add_parser("policy-read")
     p.add_argument("--board-id", required=True)
