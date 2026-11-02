@@ -4,6 +4,9 @@ Personal skills are maintained directly in this repository. Third-party skills
 remain Git submodules of their original authors, so updates do not depend on
 personal forks. `manifest/skills.json` schema 2 declares sources and dependencies.
 
+**Latest release: `v2026.11.03` (2026-11-03)** — `maintain-knowledge-base` and
+`research-readme-index` updated; see [CHANGELOG.md](CHANGELOG.md) and the `latest` tag.
+
 ## Start here
 
 - Humans: use this README for installation and source navigation.

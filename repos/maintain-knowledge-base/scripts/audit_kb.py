@@ -16,6 +16,27 @@ from typing import Iterable
 
 ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$")
 URL_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
+SRC_ID_PATTERN = re.compile(r"\bSRC-[0-9]+\b")
+MARKDOWN_LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+SOURCE_PATH_EXTENSIONS = (
+    ".md",
+    ".csv",
+    ".txt",
+    ".pdf",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".py",
+    ".ps1",
+    ".sh",
+    ".html",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".xlsx",
+    ".docx",
+)
+PROSE_PUNCTUATION = "、；，。（）【】《》"
 
 REQUIRED_PATHS = (
     "README.md",
@@ -240,6 +261,149 @@ def check_markdown(
                 add(issues, "warning", "missing-sources-field", relative, "Knowledge note should declare sources, even when the list is empty")
 
 
+def front_matter_lines(path: Path) -> list[str] | None:
+    """Return the lines between the two leading front-matter fences, if any."""
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except (OSError, UnicodeError):
+        return None
+    if not lines or lines[0].strip() != "---":
+        return None
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            return lines[1:index]
+    return None
+
+
+def parse_sources(path: Path) -> list[str]:
+    """Read the front-matter `sources` value, supporting inline and block lists."""
+    lines = front_matter_lines(path)
+    if lines is None:
+        return []
+    items: list[str] = []
+    in_sources = False
+    for line in lines:
+        if not in_sources and line.startswith("sources:"):
+            value = line.split(":", 1)[1].strip()
+            if value.startswith("[") and "]" in value:
+                inner = value[1:value.rfind("]")]
+                items.extend(
+                    part.strip().strip("\"'") for part in inner.split(",") if part.strip()
+                )
+            elif value:
+                items.append(value.strip().strip("\"'"))
+            in_sources = True
+            continue
+        if in_sources:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("-") or line[:1].isspace():
+                if stripped.startswith("-"):
+                    stripped = stripped[1:].strip()
+                stripped = stripped.strip().strip("\"'")
+                if stripped:
+                    items.append(stripped)
+                continue
+            in_sources = False
+    return items
+
+
+def check_note_ids(root: Path, issues: list[Issue]) -> None:
+    """Report markdown front-matter IDs used by more than one file."""
+    by_id: dict[str, list[str]] = {}
+    for path in sorted(root.rglob("*.md")):
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith("templates/"):
+            continue  # templates carry placeholder IDs such as EQ-0001
+        lines = front_matter_lines(path)
+        if lines is None:
+            continue
+        note_id = ""
+        for line in lines:
+            if line.startswith("id:"):
+                note_id = line.split(":", 1)[1].strip().strip("\"'")
+                break
+        if note_id:
+            by_id.setdefault(note_id, []).append(relative)
+    for note_id, paths in sorted(by_id.items()):
+        if len(paths) > 1:
+            add(
+                issues,
+                "error",
+                "duplicate-note-id",
+                paths[0],
+                f"Note ID {note_id!r} appears in multiple files: " + ", ".join(paths),
+            )
+
+
+def check_sources(
+    root: Path, issues: list[Issue], entity_ids: dict[str, dict[str, str]]
+) -> None:
+    """Check that referenced SRC records and local source targets exist.
+
+    Source targets may live outside the knowledge-base root (for example shared
+    workspace documents), so only existence is checked, not containment.
+    """
+    for path in sorted(root.rglob("*.md")):
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith("templates/"):
+            continue
+        items = parse_sources(path)
+        if not items:
+            continue
+        seen: set[tuple[str, str]] = set()
+        for item in items:
+            if URL_PATTERN.match(item.strip()):
+                continue
+            source_ids = SRC_ID_PATTERN.findall(item)
+            for source_id in source_ids:
+                if source_id not in entity_ids:
+                    key = ("record", source_id)
+                    if key not in seen:
+                        seen.add(key)
+                        add(
+                            issues,
+                            "warning",
+                            "missing-source-record",
+                            relative,
+                            f"Referenced source {source_id} is not registered in entities.csv",
+                        )
+            targets: list[str] = []
+            for match in MARKDOWN_LINK_PATTERN.finditer(item):
+                target = match.group(1).strip().strip("<>")
+                if target:
+                    targets.append(target)
+            for token in item.split():
+                candidate = token.strip("`\"'()（）【】《》")
+                if not candidate.startswith(("./", "../")):
+                    continue
+                if not candidate.lower().endswith(SOURCE_PATH_EXTENSIONS):
+                    continue
+                if any(character in candidate for character in PROSE_PUNCTUATION):
+                    continue
+                targets.append(candidate)
+            for target in targets:
+                if URL_PATTERN.match(target) or target.startswith(("#", "mailto:", "tel:")):
+                    continue
+                clean_target = target.split("#", 1)[0].strip()
+                if not clean_target:
+                    continue
+                key = ("target", target)
+                if key in seen:
+                    continue
+                seen.add(key)
+                resolved = (path.parent / clean_target).resolve(strict=False)
+                if not resolved.exists():
+                    add(
+                        issues,
+                        "warning",
+                        "missing-source-target",
+                        relative,
+                        f"Source target does not exist: {target}",
+                    )
+
+
 def audit(root: Path, stale_days: int) -> tuple[list[Issue], dict[str, int]]:
     issues: list[Issue] = []
     counts = {"entities": 0, "projects": 0, "relations": 0}
@@ -356,6 +520,8 @@ def audit(root: Path, stale_days: int) -> tuple[list[Issue], dict[str, int]]:
             check_date(issues, "catalog/relations.csv", row_number, field, row.get(field, ""))
 
     check_markdown(root, issues, entity_ids)
+    check_note_ids(root, issues)
+    check_sources(root, issues, entity_ids)
     return issues, counts
 
 

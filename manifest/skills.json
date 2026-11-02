@@ -1,6 +1,7 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-08",
+  "generated_at": "2026-11-03",
+  "latest_release": "v2026.11.03",
   "owner": "Austrust",
   "collection_repository": "https://github.com/Austrust/codex-skills.git",
   "skills": [

@@ -1,4 +1,4 @@
 interface:
   display_name: "长期知识库维护"
-  short_description: "构建、维护并审计面向科研与事务工作的长期本地知识库"
-  default_prompt: "Use $maintain-knowledge-base to configure, create, or safely update my long-term local knowledge base."
+  short_description: "查询、补记、继续项目与审计长期本地知识库（单一权威、别名检索、渐进披露）"
+  default_prompt: "Use $maintain-knowledge-base to answer questions from my knowledge base, record or update facts in the single authoritative place, continue an existing project, or audit/migrate it safely."

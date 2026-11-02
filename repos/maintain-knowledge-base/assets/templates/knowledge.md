@@ -4,6 +4,7 @@ title: 知识标题
 kind: concept
 status: draft
 scope: 适用范围
+aliases: []
 sources: []
 origin_projects: []
 created_at: YYYY-MM-DD
