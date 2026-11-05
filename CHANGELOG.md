@@ -6,6 +6,12 @@ Notable changes to this personal skill collection. Releases use date-based tags
 
 ## Unreleased
 
+- Refreshed original upstreams: `anti-defensive-writing` to `f516147`
+  (Chinese technical-writing and SOP guidance) and mattpocock/skills to
+  `4ae2317` (`grilling`, `grill-me`, and `to-tickets`).
+- Removed the orphan `to-issue` manifest entry: no source package or tracked
+  package history exists. The collection contains 17 installable skills.
+
 - Added `to-tickets` from mattpocock/skills (existing `repos/grill-me`
   submodule, pin refreshed to `49dd158`): splits a plan, spec or conversation
   into tracer-bullet tickets with blocking edges and publishes them to the

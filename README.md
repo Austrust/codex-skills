@@ -21,9 +21,9 @@ personal forks. `manifest/skills.json` schema 2 declares sources and dependencie
 |---|---|---|
 | `overleaf` | [repos/overleaf/overleaf](repos/overleaf/overleaf/SKILL.md) | Personal source |
 | `reader-first-communication` | [repos/reader-first-communication](repos/reader-first-communication/SKILL.md) | Personal source |
-| `anti-defensive-writing` | [repos/anti-defensive-writing/skill/anti-defensive-writing](https://github.com/Kiterlin/anti-defensive-writing/tree/c7edf8fc91ae9c4f7e58345bd12934bb4cf41c46/skill/anti-defensive-writing) | Original-upstream submodule |
-| `grilling` | [repos/grill-me/skills/productivity/grilling](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/productivity/grilling) | Original-upstream submodule |
-| `grill-me` | [repos/grill-me/skills/productivity/grill-me](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/productivity/grill-me) | Original-upstream submodule |
+| `anti-defensive-writing` | [repos/anti-defensive-writing/skill/anti-defensive-writing](https://github.com/Kiterlin/anti-defensive-writing/tree/f516147d017a3fe43ae99192cb89d8261b0c8679/skill/anti-defensive-writing) | Original-upstream submodule |
+| `grilling` | [repos/grill-me/skills/productivity/grilling](https://github.com/mattpocock/skills/tree/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/productivity/grilling) | Original-upstream submodule |
+| `grill-me` | [repos/grill-me/skills/productivity/grill-me](https://github.com/mattpocock/skills/tree/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/productivity/grill-me) | Original-upstream submodule |
 | `research-folder-organizer` | [repos/research-folder-organizer/research-folder-organizer](repos/research-folder-organizer/research-folder-organizer/SKILL.md) | Personal source |
 | `neat-freak` | [repos/neat-freak](repos/neat-freak/SKILL.md) | Personal source |
 | `planka-kanban` | [repos/planka-kanban](repos/planka-kanban/SKILL.md) | Personal source |
@@ -35,7 +35,7 @@ personal forks. `manifest/skills.json` schema 2 declares sources and dependencie
 | `zotero-literature-guide` | [repos/zotero-literature-guide](repos/zotero-literature-guide/SKILL.md) | Personal source |
 | `maintain-knowledge-base` | [repos/maintain-knowledge-base](repos/maintain-knowledge-base/SKILL.md) | Personal source |
 | `research-illustrated-guide` | [repos/research-illustrated-guide](repos/research-illustrated-guide/SKILL.md) | Personal source |
-| `to-tickets` | [repos/grill-me/skills/engineering/to-tickets](https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills/engineering/to-tickets) | Original-upstream submodule |
+| `to-tickets` | [repos/grill-me/skills/engineering/to-tickets](https://github.com/mattpocock/skills/tree/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-tickets) | Original-upstream submodule |
 
 ## Install on a new machine
 
