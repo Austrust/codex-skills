@@ -56,7 +56,7 @@
       "storage": "submodule",
       "repository": "https://github.com/mattpocock/skills.git",
       "branch": "main",
-      "pinned_commit": "b0618bc436ad893b3c5e84e55fba86586d34a404",
+      "pinned_commit": "49dd158d1076134a641b33efb035946536778336",
       "submodule_path": "repos/grill-me"
     },
     {
@@ -72,7 +72,20 @@
       "storage": "submodule",
       "repository": "https://github.com/mattpocock/skills.git",
       "branch": "main",
-      "pinned_commit": "b0618bc436ad893b3c5e84e55fba86586d34a404",
+      "pinned_commit": "49dd158d1076134a641b33efb035946536778336",
+      "submodule_path": "repos/grill-me"
+    },
+    {
+      "name": "to-tickets",
+      "source_path": "repos/grill-me/skills/engineering/to-tickets",
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "storage": "submodule",
+      "repository": "https://github.com/mattpocock/skills.git",
+      "branch": "main",
+      "pinned_commit": "49dd158d1076134a641b33efb035946536778336",
       "submodule_path": "repos/grill-me"
     },
     {
@@ -227,6 +240,20 @@
       "provenance": {
         "repository": "https://github.com/Austrust/research-illustrated-guide.git",
         "commit": "8097999c1fe808985e3cd5716d60ae36772ba572",
+        "branch": "main"
+      },
+      "storage": "vendored"
+    },
+    {
+      "name": "to-issue",
+      "source_path": "repos/to-issue",
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "provenance": {
+        "repository": "https://github.com/Austrust/codex-skills.git",
+        "commit": "315fba287828d1f88094c225273de07e66a20ae2",
         "branch": "main"
       },
       "storage": "vendored"

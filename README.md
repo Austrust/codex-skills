@@ -35,6 +35,7 @@ personal forks. `manifest/skills.json` schema 2 declares sources and dependencie
 | `zotero-literature-guide` | [repos/zotero-literature-guide](repos/zotero-literature-guide/SKILL.md) | Personal source |
 | `maintain-knowledge-base` | [repos/maintain-knowledge-base](repos/maintain-knowledge-base/SKILL.md) | Personal source |
 | `research-illustrated-guide` | [repos/research-illustrated-guide](repos/research-illustrated-guide/SKILL.md) | Personal source |
+| `to-tickets` | [repos/grill-me/skills/engineering/to-tickets](https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills/engineering/to-tickets) | Original-upstream submodule |
 
 ## Install on a new machine
 

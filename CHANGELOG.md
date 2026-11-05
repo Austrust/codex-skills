@@ -4,6 +4,14 @@ Notable changes to this personal skill collection. Releases use date-based tags
 `vYYYY.MM.DD`; `v2026.11.03` is the newest release, mirrored by the moving tag
 `latest`. `manifest/skills.json` also records `latest_release`.
 
+## Unreleased
+
+- Added `to-tickets` from mattpocock/skills (existing `repos/grill-me`
+  submodule, pin refreshed to `49dd158`): splits a plan, spec or conversation
+  into tracer-bullet tickets with blocking edges and publishes them to the
+  configured tracker (GitHub, GitLab or local markdown). `grilling` and
+  `grill-me` pins were aligned to the same submodule HEAD.
+
 ## v2026.11.03 — 2026-11-03 (latest)
 
 Updated skills:

@@ -6,7 +6,7 @@ Updated: 2026-11-01
 
 The user's 2026-10-08 decision replaces the former one-skill-one-repository model
 with a hybrid collection. All 12 personal skills are ordinary tracked source
-packages in `Austrust/codex-skills`. Four third-party skills use three submodules
+packages in `Austrust/codex-skills`. Five third-party skills use three submodules
 of their original authors: Kiterlin, mattpocock, and Master-cai. Personal forks
 are no longer part of the source or update chain.
 
