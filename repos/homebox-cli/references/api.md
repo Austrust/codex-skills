@@ -7,7 +7,11 @@ and `/swagger/`.
 
 - Static API keys: create under Profile -> API Keys, or
   `POST /users/self/api-keys` with `{"name": "...", "expiresAt": "<RFC3339>"}`.
-  The response contains the raw token once. Server default TTL is 30 days.
+  The response contains the raw token once. Without an explicit `expiresAt` the
+  server applies a 30-day TTL; there is no "never expires" switch, but any
+  explicit future `expiresAt` (e.g. `2099-01-01T00:00:00Z`) is accepted, so a
+  long-lived key is possible. There is no endpoint to change an existing key's
+  expiry — rotate by creating a new key and deleting the old one.
 - Every request sends `Authorization: Bearer <raw-api-key>`.
   A session token from `POST /users/login` is returned *with* the literal
   `Bearer ` prefix inside the `token` field, so a session token must be sent as
