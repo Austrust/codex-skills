@@ -197,6 +197,8 @@ class Client:
                 hint = " (the user/key may not belong to this collection; check --tenant)"
             elif exc.code == 404:
                 hint = " (object not found in the selected collection)"
+            elif exc.code == 413:
+                hint = " (body too large; HomeBox's default upload cap is 10 MB and can be raised with web.max_file_upload)"
             raise ApiError(message + hint, status=exc.code, details=details)
         except urllib.error.URLError as exc:
             raise CliError("cannot reach %s: %s" % (self.url, exc.reason))
@@ -1039,8 +1041,12 @@ def cmd_attach(client, args):
     if not path.is_file():
         raise CliError("file not found: %s" % path)
     size = path.stat().st_size
-    if size > 50 * 1024 * 1024:
-        raise CliError("file is %.1f MB; HomeBox may reject uploads over the configured limit (~50 MB)" % (size / 1048576.0))
+    if size > 10 * 1024 * 1024 and not args.force_large:
+        raise CliError(
+            "file is %.1f MB; HomeBox's default upload cap is 10 MB (server-configured via "
+            "web.max_file_upload). Re-run with --force-large to attempt anyway, or link the "
+            "file from an external URL in the HomeBox UI." % (size / 1048576.0)
+        )
     name = args.name or path.name
     mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
     fields = {"name": name}
@@ -1349,6 +1355,7 @@ def build_parser():
     p.add_argument("--name", help="attachment title/filename (default: file name)")
     p.add_argument("--type", choices=["photo", "attachment", "manual", "receipt", "warranty"], default=None)
     p.add_argument("--primary", action="store_true", help="mark as primary photo")
+    p.add_argument("--force-large", action="store_true", help="attempt uploads over the default 10 MB cap")
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(func=cmd_attach)
 

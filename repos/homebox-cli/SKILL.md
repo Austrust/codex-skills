@@ -47,6 +47,14 @@ All commands accept `--json` for raw API output. Name references must be unique;
 
 Add `--dry-run` to any write command to see the exact JSON payload without sending it.
 
+Writable content: item/location names, descriptions, quantity, serial/model/
+manufacturer, asset ID, purchase price/date/source, warranty expiry/details,
+notes, tags, custom fields (as text), parent/location, archived flag; tags with
+name/description/color/parent; attachments of any file type (photos default to
+`photo`, 10 MB server default cap); maintenance entries; API keys. The CLI
+cannot create entity types, collections, members, or import CSV; sold fields,
+insurance, lifetime-warranty and template/label features are UI/API-only.
+
 ## Operating rules
 
 - Read before write: `search` / `show` / `tree` first, then create or update. Report the entity UUID after a write.

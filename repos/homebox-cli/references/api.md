@@ -101,7 +101,19 @@ depth 5). Items reference tags through `tagIds`.
 The response is the updated entity. `GET .../attachments/{attachment_id}`
 downloads one file; `POST .../attachments/external` links an external URL.
 `PUT .../attachments/{attachment_id}` updates title/type/primary, `DELETE`
-removes it. Maximum upload size is server-configured.
+removes it.
+
+Upload limits and formats:
+
+- The request-body cap is `web.max_file_upload`, **default 10 MB** (this
+  deployment does not override it). Larger uploads are rejected with HTTP 413.
+- Photo files with extensions `.jpg .jpeg .png .webp .gif .bmp .tiff .avif .ico
+  .heic .jxl` are classified as `photo`; other extensions default to
+  `attachment`. HEIC/AVIF/JXL conversion and thumbnails happen server-side.
+- Any file type can be stored as `attachment`, `manual`, `receipt`, or
+  `warranty`; there is also an external-link attachment type.
+- The CLI uploads files but does not crop/compress images or edit/delete
+  existing attachments (the API/UI can).
 
 ## Maintenance
 
