@@ -1,0 +1,6 @@
+interface:
+  display_name: "HomeBox CLI"
+  short_description: "Look up and edit HomeBox inventory through the REST API"
+  default_prompt: "Use $homebox-cli to inspect or update HomeBox items, locations, tags, photos, or maintenance records."
+policy:
+  allow_implicit_invocation: true

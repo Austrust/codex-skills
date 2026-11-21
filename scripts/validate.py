@@ -154,8 +154,11 @@ def check_entry(root, entry, installed_root):
             raise ValueError(f'Embedded Git metadata in personal source: {name}')
         if any(key in entry for key in ('submodule_path', 'pinned_commit', 'repository', 'branch')):
             raise ValueError(f'Obsolete personal-repository fields: {name}')
-        if not re.fullmatch(r'[0-9a-f]{40}', entry['provenance']['commit']):
-            raise ValueError(f'Invalid import provenance: {name}')
+        # Personal provenance records historical imports only; a skill introduced
+        # directly in this collection has none and is validated without it.
+        if 'provenance' in entry:
+            if not re.fullmatch(r'[0-9a-f]{40}', entry['provenance'].get('commit', '')):
+                raise ValueError(f'Invalid import provenance: {name}')
     elif entry['storage'] == 'submodule':
         if (package / '.git').exists():
             head = subprocess.check_output(['git', '-C', str(package), 'rev-parse', 'HEAD'], text=True).strip()

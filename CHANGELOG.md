@@ -6,11 +6,21 @@ Notable changes to this personal skill collection. Releases use date-based tags
 
 ## Unreleased
 
+- Added `homebox-cli`: a dependency-free Python CLI for a HomeBox v0.27.x
+  inventory over its REST API — search/list/show, create items and locations,
+  merge-safe updates, move, delete with confirmation, tags, photo/attachment
+  upload, maintenance entries, CSV export, collection statistics, QR images and
+  API-key listing. Includes `references/api.md` for the entity model and
+  full-replacement update semantics, and a gitignored `references/local-context.md`
+  for per-deployment connection facts.
+- `scripts/validate.py`: personal skills without historical import provenance are
+  accepted (provenance remains optional and historical only); a present
+  provenance commit must still be a 40-character hash.
 - Refreshed original upstreams: `anti-defensive-writing` to `f516147`
   (Chinese technical-writing and SOP guidance) and mattpocock/skills to
   `4ae2317` (`grilling`, `grill-me`, and `to-tickets`).
 - Removed the orphan `to-issue` manifest entry: no source package or tracked
-  package history exists. The collection contains 17 installable skills.
+  package history exists. The collection contains 18 installable skills.
 
 - Added `to-tickets` from mattpocock/skills (existing `repos/grill-me`
   submodule, pin refreshed to `49dd158`): splits a plan, spec or conversation

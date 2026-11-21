@@ -243,6 +243,15 @@
         "branch": "main"
       },
       "storage": "vendored"
+    },
+    {
+      "name": "homebox-cli",
+      "source_path": "repos/homebox-cli",
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "storage": "vendored"
     }
   ],
   "repository_model": "hybrid"
