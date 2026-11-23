@@ -251,7 +251,11 @@
         "codex",
         "agents"
       ],
-      "storage": "vendored"
+      "storage": "submodule",
+      "repository": "https://github.com/Austrust/homebox-cli.git",
+      "branch": "main",
+      "pinned_commit": "26b5acf97373a45c8a0516df43275c7a6843cf74",
+      "submodule_path": "repos/homebox-cli"
     }
   ],
   "repository_model": "hybrid"

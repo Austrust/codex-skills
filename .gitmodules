@@ -10,3 +10,7 @@
 	path = repos/research-paper-writing
 	url = https://github.com/Master-cai/Research-Paper-Writing-Skills.git
 	branch = main
+[submodule "repos/homebox-cli"]
+	path = repos/homebox-cli
+	url = https://github.com/Austrust/homebox-cli.git
+	branch = main
