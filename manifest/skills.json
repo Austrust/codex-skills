@@ -245,6 +245,15 @@
       "storage": "vendored"
     },
     {
+      "name": "mechanical-drawing",
+      "source_path": "repos/mechanical-drawing",
+      "targets": [
+        "codex",
+        "agents"
+      ],
+      "storage": "vendored"
+    },
+    {
       "name": "homebox-cli",
       "source_path": "repos/homebox-cli",
       "targets": [

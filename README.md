@@ -37,6 +37,7 @@ personal forks. `manifest/skills.json` schema 2 declares sources and dependencie
 | `research-illustrated-guide` | [repos/research-illustrated-guide](repos/research-illustrated-guide/SKILL.md) | Personal source |
 | `to-tickets` | [repos/grill-me/skills/engineering/to-tickets](https://github.com/mattpocock/skills/tree/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/engineering/to-tickets) | Original-upstream submodule |
 | `homebox-cli` | [repos/homebox-cli](repos/homebox-cli/SKILL.md) | Personal source |
+| `mechanical-drawing` | [repos/mechanical-drawing](repos/mechanical-drawing/SKILL.md) | Personal source |
 
 ## Install on a new machine
 

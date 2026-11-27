@@ -6,6 +6,9 @@ Notable changes to this personal skill collection. Releases use date-based tags
 
 ## Unreleased
 
+- Added `mechanical-drawing`: 3D 模型（STEP / build123d）→ 规范机械加工工程图
+  （draftwright ISO 128/129 视图与尺寸、ISO 7200 标题栏；PyMuPDF 中文标题、技术要求与标注叠加），
+  含标准基线、中文叠加要点、自动标注人工修正表与成图检查清单。Collection now has 19 installable skills.
 - Added `homebox-cli`: a dependency-free Python CLI for a HomeBox v0.27.x
   inventory over its REST API — search/list/show, create items and locations,
   merge-safe updates, move, delete with confirmation, tags, photo/attachment
